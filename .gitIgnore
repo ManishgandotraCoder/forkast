@@ -1,0 +1,43 @@
+# Backend
+/forkast-be/node_modules
+/forkast-be/coverage
+/forkast-be/coverage-e2e
+/forkast-be/.nyc_output
+/forkast-be/dist
+/forkast-be/.env
+/forkast-be/.env.local
+
+# Frontend
+/forkast-fe/node_modules
+/forkast-fe/.next
+/forkast-fe/out
+/forkast-fe/build
+/forkast-fe/.env.local
+/forkast-fe/.env.production
+/forkast-fe/.env
+/forkast-be/src/generated
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage
+.nyc_output
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
