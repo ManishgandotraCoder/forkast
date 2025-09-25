@@ -139,6 +139,9 @@ npx prisma db seed
 - Test endpoints directly from the browser
 - Authentication token input for protected endpoints
 
+<img width="1445" height="698" alt="Screenshot 2025-09-25 at 6 11 04 AM" src="https://github.com/user-attachments/assets/0d82ae69-f9ce-4c5e-ae46-307999f0afec" />
+
+
 ## Production
 - Built with TypeScript compilation
 - Winston logging with error tracking
