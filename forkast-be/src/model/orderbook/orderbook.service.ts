@@ -193,10 +193,10 @@ export class OrderbookService {
 
         const matchingOrders = await tx.order.findMany({
             where: {
-                type: oppositeType,
-                symbol,
+                type: oppositeType,  //buy
+                symbol,// btc
                 status: 'open',
-                price: priceCondition,
+                price: priceCondition, //price vlaue
             },
             orderBy,
         });
@@ -386,4 +386,18 @@ export class OrderbookService {
             }
         };
     }
+    async cancelOrder(userId: number, orderId: string): Promise<Order> {
+        const order = await this.prisma.order.findUnique({
+            where: { id: parseInt(orderId), userId },
+        });
+
+        if (!order) {
+            throw new BadRequestException(`Order with ID ${orderId} not found`);
+        }
+        return this.prisma.order.update({
+            where: { id: parseInt(orderId) },
+            data: { status: 'cancelled' },
+        });
+    }
+
 }

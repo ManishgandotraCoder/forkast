@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { OrderbookModule } from './orderbook.module';
 import { OrderbookController } from './orderbook.controller';
-import { OrderbookRefactoredService } from './orderbook-refactored.service';
+import { OrderbookService } from './orderbook.service';
 import { PrismaService } from '../../prisma.service';
 
 describe('OrderbookModule', () => {
@@ -27,7 +27,7 @@ describe('OrderbookModule', () => {
     });
 
     it('should provide OrderbookRefactoredService', () => {
-        const service = module.get<OrderbookRefactoredService>(OrderbookRefactoredService);
+        const service = module.get<OrderbookService>(OrderbookService);
         expect(service).toBeDefined();
     });
 

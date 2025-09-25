@@ -6,6 +6,9 @@ import {
     UseGuards,
     Request,
     Query,
+    Delete,
+    Param,
+    Put,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery, ApiBody } from '@nestjs/swagger';
 import { OrderbookService } from './orderbook.service';
@@ -53,7 +56,38 @@ export class OrderbookController {
             body.market || false,
         );
     }
+    //
+    @UseGuards(JwtAuthGuard)
+    @Put('cancel')
+    @ApiBearerAuth()
+    @ApiOperation({
+        summary: 'Cancel an order',
+        description: 'Cancel an existing order by its ID'
+    })
+    @ApiBody({ type: PlaceOrderDto })
+    @ApiResponse({
+        status: 201,
+        description: 'Order cancelled successfully',
+        type: OrderResponseDto
+    })
+    @ApiResponse({
+        status: 400,
+        description: 'Bad request - Order not found ',
+        type: ErrorResponseDto
+    })
+    @ApiResponse({
+        status: 401,
+        description: 'Unauthorized - invalid or missing token',
+        type: ErrorResponseDto
+    })
+    async cancelOrder(@Param('id') id: string, @Request() req) {
+        return this.orderbookService.cancelOrder(
+            req.user.id,
+            id
+        );
+    }
 
+    //
     @UseGuards(JwtAuthGuard)
     @Post('sell')
     @ApiBearerAuth()

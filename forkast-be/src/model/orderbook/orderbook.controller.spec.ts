@@ -1,12 +1,12 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { OrderbookController } from './orderbook.controller';
-import { OrderbookRefactoredService } from './orderbook-refactored.service';
+import { OrderbookService } from './orderbook.service';
 import { JwtAuthGuard } from '../user/jwt-auth.guard';
 import { BadRequestException } from '@nestjs/common';
 
 describe('OrderbookController', () => {
     let controller: OrderbookController;
-    let orderbookService: OrderbookRefactoredService;
+    let orderbookService: OrderbookService;
 
     const mockOrderbookService = {
         placeOrder: jest.fn(),
@@ -24,7 +24,7 @@ describe('OrderbookController', () => {
             controllers: [OrderbookController],
             providers: [
                 {
-                    provide: OrderbookRefactoredService,
+                    provide: OrderbookService,
                     useValue: mockOrderbookService,
                 },
             ],
@@ -34,7 +34,7 @@ describe('OrderbookController', () => {
             .compile();
 
         controller = module.get<OrderbookController>(OrderbookController);
-        orderbookService = module.get<OrderbookRefactoredService>(OrderbookRefactoredService);
+        orderbookService = module.get<OrderbookService>(OrderbookService);
     });
 
     afterEach(() => {
@@ -152,7 +152,7 @@ describe('OrderbookController', () => {
 
             const result = await controller.getOrderbook();
 
-            expect(mockOrderbookService.getOrderbook).toHaveBeenCalledWith(undefined);
+            expect(mockOrderbookService.getOrderbook).toHaveBeenCalledWith(undefined, 1, 50);
             expect(result).toEqual(mockOrderbook);
         });
     });
@@ -167,7 +167,7 @@ describe('OrderbookController', () => {
 
             const result = await controller.getTradeHistory(mockRequest);
 
-            expect(mockOrderbookService.getTradeHistory).toHaveBeenCalledWith(1);
+            expect(mockOrderbookService.getTradeHistory).toHaveBeenCalledWith(1, 1, 50);
             expect(result).toEqual(mockTrades);
         });
     });
