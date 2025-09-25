@@ -133,6 +133,12 @@ npx prisma migrate dev
 npx prisma db seed
 ```
 
+## API Documentation
+- **Swagger UI**: [http://localhost:3001/api](http://localhost:3001/api)
+- Interactive API documentation with request/response examples
+- Test endpoints directly from the browser
+- Authentication token input for protected endpoints
+
 ## Production
 - Built with TypeScript compilation
 - Winston logging with error tracking
