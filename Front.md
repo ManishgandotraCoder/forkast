@@ -194,3 +194,19 @@ npm start
 - Code splitting and lazy loading
 - Optimized bundle sizes
 - Real-time data updates
+
+## Screenshots
+<img width="1445" height="698" alt="Screenshot 2025-09-25 at 6 05 32 AM" src="https://github.com/user-attachments/assets/bd886381-2879-4db4-abcb-90b4109fa85d" />
+
+<img width="1445" height="698" alt="Screenshot 2025-09-25 at 6 05 38 AM" src="https://github.com/user-attachments/assets/a4e859bc-8a99-4033-99a0-acd57a468624" />
+
+<img width="1445" height="698" alt="Screenshot 2025-09-25 at 6 05 50 AM" src="https://github.com/user-attachments/assets/bf72f19f-8564-42a1-ae54-981bfb6ab806" />
+
+<img width="1445" height="698" alt="Screenshot 2025-09-25 at 6 05 53 AM" src="https://github.com/user-attachments/assets/27a5f7e1-9fee-4b08-9c60-fa72ea04690a" />
+
+<img width="1445" height="698" alt="Screenshot 2025-09-25 at 6 05 53 AM" src="https://github.com/user-attachments/assets/c82b3d7a-7689-4a3e-9767-1434f61b86f9" />
+
+<img width="1445" height="698" alt="Screenshot 2025-09-25 at 6 06 06 AM" src="https://github.com/user-attachments/assets/5060d5f3-058b-4bea-ad59-806e8b901022" />
+
+
+
