@@ -196,17 +196,15 @@ npm start
 - Real-time data updates
 
 ## Screenshots
-<img width="1445" height="698" alt="Screenshot 2025-09-25 at 6 05 32 AM" src="https://github.com/user-attachments/assets/bd886381-2879-4db4-abcb-90b4109fa85d" />
 
-<img width="1445" height="698" alt="Screenshot 2025-09-25 at 6 05 38 AM" src="https://github.com/user-attachments/assets/a4e859bc-8a99-4033-99a0-acd57a468624" />
+<img width="1445" height="690" alt="Screenshot 2025-09-25 at 6 15 24 AM" src="https://github.com/user-attachments/assets/33f88007-7826-4e4d-8fbb-9bad1db3f580" />
 
-<img width="1445" height="698" alt="Screenshot 2025-09-25 at 6 05 50 AM" src="https://github.com/user-attachments/assets/bf72f19f-8564-42a1-ae54-981bfb6ab806" />
+<img width="1445" height="644" alt="Screenshot 2025-09-25 at 6 15 32 AM" src="https://github.com/user-attachments/assets/c05f4b6d-8c51-494f-8e01-4b00ff969a7d" />
 
-<img width="1445" height="698" alt="Screenshot 2025-09-25 at 6 05 53 AM" src="https://github.com/user-attachments/assets/27a5f7e1-9fee-4b08-9c60-fa72ea04690a" />
+<img width="1445" height="674" alt="Screenshot 2025-09-25 at 6 15 43 AM" src="https://github.com/user-attachments/assets/4c45bdbc-dd5e-422f-bd69-017a524ba7db" />
 
-<img width="1445" height="698" alt="Screenshot 2025-09-25 at 6 05 53 AM" src="https://github.com/user-attachments/assets/c82b3d7a-7689-4a3e-9767-1434f61b86f9" />
+<img width="1445" height="684" alt="Screenshot 2025-09-25 at 6 15 59 AM" src="https://github.com/user-attachments/assets/686c7e94-9186-430e-8f0d-24f72f0969dc" />
 
-<img width="1445" height="698" alt="Screenshot 2025-09-25 at 6 06 06 AM" src="https://github.com/user-attachments/assets/5060d5f3-058b-4bea-ad59-806e8b901022" />
+<img width="1445" height="626" alt="Screenshot 2025-09-25 at 6 16 06 AM" src="https://github.com/user-attachments/assets/8ea6bd49-c662-411f-9220-5017563ba016" />
 
-
-
+<img width="1445" height="626" alt="Screenshot 2025-09-25 at 6 16 11 AM" src="https://github.com/user-attachments/assets/1e1e54de-8ba5-468d-be8e-e5943f32d9fb" />
