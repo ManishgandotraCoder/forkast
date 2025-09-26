@@ -15,6 +15,14 @@ export class OrderbookService {
         }
     }
 
+    protected getCurrentMarketPrice(symbol: string): number {
+        const crypto = cryptoList.find(c => c.symbol === symbol);
+        if (!crypto) {
+            throw new BadRequestException(`Symbol ${symbol} not supported`);
+        }
+        return crypto.price;
+    }
+
     protected async createOrder(
         tx: any,
         userId: number,
@@ -185,6 +193,16 @@ export class OrderbookService {
         price: number,
         type: 'buy' | 'sell',
     ): Promise<Order> {
+        // For sell orders, check if price equals current market price
+        if (type === 'sell') {
+            const currentMarketPrice = this.getCurrentMarketPrice(symbol);
+            if (price === currentMarketPrice) {
+                throw new BadRequestException(
+                    `Sell order cannot be placed at current market price (${currentMarketPrice}). Use market order instead.`
+                );
+            }
+        }
+
         const oppositeType = type === 'buy' ? 'sell' : 'buy';
         const priceCondition = type === 'buy' ? { lte: price } : { gte: price };
         const orderBy = type === 'buy'

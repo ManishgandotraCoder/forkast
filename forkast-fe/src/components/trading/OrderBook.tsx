@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { orderbookAPI } from '@/lib/api';
 import { useCryptoSymbols } from '@/lib/useCryptoSymbols';
-import DataTable from '../ui/DataTable';
 import Pagination from '../ui/Pagination';
 import OrderBookDataTable from '../ui/OrderBookTable';
 
