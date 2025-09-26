@@ -83,7 +83,7 @@ export const ordersAPI = {
     }),
 
     cancelOrder: (orderId: string, reason?: string) =>
-        api.delete(`/orders/${orderId}`, { params: { reason } }),
+        api.delete(`/orderbook/cancel/${orderId}`, { params: { reason } }),
 };
 
 // Trades API

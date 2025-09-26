@@ -2,11 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, Search, Eye, X, CheckCircle, Clock, XCircle } from 'lucide-react';
+import { Plus, Search, CheckCircle, Clock, XCircle } from 'lucide-react';
 import { ordersAPI } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import DataTable from '@/components/ui/DataTable';
 import Pagination from '@/components/ui/Pagination';
+import Double from '@/components/ui/Button';
 import { BackendOrder, Order } from './interface';
 
 
@@ -187,14 +188,14 @@ export default function OrdersPage() {
         {
             key: 'symbol',
             label: 'Symbol',
-            render: (value: string, order: Order) => (
+            render: (value: string) => (
                 <div className="text-sm font-medium text-gray-900">{value}</div>
             ),
         },
         {
             key: 'side',
             label: 'Side',
-            render: (value: string, order: Order) => (
+            render: (value: string) => (
                 <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${value === 'BUY'
                     ? 'bg-green-100 text-green-800'
                     : 'bg-red-100 text-red-800'
@@ -247,30 +248,22 @@ export default function OrdersPage() {
             key: 'actions',
             label: 'Actions',
             align: 'right' as const,
-            render: (_: any, order: Order) => (
+            render: (_: string, order: Order) => (
                 <div className="flex justify-end space-x-2">
-                    <button
-                        onClick={() => handleViewDetails(order.orderId)}
-                        className="text-indigo-600 hover:text-indigo-900"
-                    >
-                        <Eye className="h-4 w-4" />
-                    </button>
+
                     {order.status === 'OPEN' && (
-                        <button
+                        <Double
                             onClick={() => handleCancelOrder(order.orderId)}
-                            className="text-red-600 hover:text-red-900"
-                        >
-                            <X className="h-4 w-4" />
-                        </button>
+                            size="md"
+                            variant="danger"
+                            title="Cancel Order"
+                        />
                     )}
                 </div>
             ),
         },
     ];
 
-    const handleViewDetails = (orderId: string) => {
-        router.push(`/orders/${orderId}`);
-    };
 
     const handleCancelOrder = async (orderId: string) => {
         try {

@@ -58,21 +58,20 @@ export class OrderbookController {
     }
     //
     @UseGuards(JwtAuthGuard)
-    @Put('cancel')
+    @Delete('cancel/:id')
     @ApiBearerAuth()
     @ApiOperation({
         summary: 'Cancel an order',
         description: 'Cancel an existing order by its ID'
     })
-    @ApiBody({ type: PlaceOrderDto })
     @ApiResponse({
-        status: 201,
+        status: 200,
         description: 'Order cancelled successfully',
         type: OrderResponseDto
     })
     @ApiResponse({
         status: 400,
-        description: 'Bad request - Order not found ',
+        description: 'Bad request - Order not found or cannot be cancelled',
         type: ErrorResponseDto
     })
     @ApiResponse({

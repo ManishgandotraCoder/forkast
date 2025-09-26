@@ -387,17 +387,56 @@ export class OrderbookService {
         };
     }
     async cancelOrder(userId: number, orderId: string): Promise<Order> {
-        const order = await this.prisma.order.findUnique({
-            where: { id: parseInt(orderId), userId },
-        });
+        try {
+            return await this.prisma.$transaction(async (tx) => {
+                const order = await tx.order.findUnique({
+                    where: { id: parseInt(orderId), userId },
+                });
 
-        if (!order) {
-            throw new BadRequestException(`Order with ID ${orderId} not found`);
+                if (!order) {
+                    throw new BadRequestException(`Order with ID ${orderId} not found`);
+                }
+
+                if (order.status !== 'open') {
+                    throw new BadRequestException(`Order with ID ${orderId} cannot be cancelled. Current status: ${order.status}`);
+                }
+
+                // Calculate remaining quantity to refund
+                const remainingQuantity = order.quantity - order.filledQuantity;
+
+                if (remainingQuantity > 0) {
+                    // Refund the remaining balance based on order type
+                    if (order.type === 'buy') {
+                        // For buy orders, refund the remaining quantity * price in the base currency
+                        const refundAmount = remainingQuantity * order.price;
+                        await this.transferBalance(tx, 0, userId, order.symbol, remainingQuantity);
+                        // Note: In a real system, you'd also refund the base currency (USD) used for the buy order
+                        // This would require tracking the base currency used for each order
+                    } else if (order.type === 'sell') {
+                        // For sell orders, refund the remaining quantity of the asset
+                        await this.transferBalance(tx, 0, userId, order.symbol, remainingQuantity);
+                    }
+                }
+
+                // Update order status to cancelled
+                const cancelledOrder = await tx.order.update({
+                    where: { id: parseInt(orderId) },
+                    data: { status: 'cancelled' },
+                });
+
+                this.logger.log(
+                    `Order cancelled: id=${orderId} userId=${userId} ${order.symbol} type=${order.type} remaining=${remainingQuantity}`
+                );
+
+                return cancelledOrder;
+            });
+        } catch (error) {
+            this.logger.error(
+                `Failed to cancel order: orderId=${orderId} userId=${userId}`,
+                error instanceof Error ? error.stack : String(error)
+            );
+            throw error;
         }
-        return this.prisma.order.update({
-            where: { id: parseInt(orderId) },
-            data: { status: 'cancelled' },
-        });
     }
 
 }

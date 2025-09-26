@@ -5,6 +5,7 @@ import { orderbookAPI } from '@/lib/api';
 import { useCryptoSymbols } from '@/lib/useCryptoSymbols';
 import DataTable from '../ui/DataTable';
 import Pagination from '../ui/Pagination';
+import OrderBookDataTable from '../ui/OrderBookTable';
 
 interface OrderBookEntry {
     price: number | string;
@@ -138,7 +139,7 @@ export default function OrderBook() {
                 </div>
             ) : orderBook ? (
                 <>
-                    <DataTable
+                    <OrderBookDataTable
                         title={`Order Book - ${orderBook.symbol}`}
                         symbol={orderBook.symbol}
                         bids={orderBook.bids}
