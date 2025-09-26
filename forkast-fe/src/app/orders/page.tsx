@@ -9,6 +9,7 @@ import DataTable from '@/components/ui/DataTable';
 import Pagination from '@/components/ui/Pagination';
 import Double from '@/components/ui/Button';
 import { BackendOrder, Order } from './interface';
+import ButtonComponent from '@/components/ui/Button';
 
 
 
@@ -252,11 +253,12 @@ export default function OrdersPage() {
                 <div className="flex justify-end space-x-2">
 
                     {order.status === 'OPEN' && (
-                        <Double
+                        <ButtonComponent
                             onClick={() => handleCancelOrder(order.orderId)}
-                            size="md"
+                            size="sm"
                             variant="danger"
                             title="Cancel Order"
+                            className='bg-red-600 text-white hover:bg-red-700 p-2'
                         />
                     )}
                 </div>

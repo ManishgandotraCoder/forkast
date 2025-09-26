@@ -11,7 +11,7 @@ interface DoubleProps {
     title?: string;
 }
 
-export default function Double({
+export default function ButtonComponent({
     onClick,
     disabled = false,
     size = 'md',
@@ -19,11 +19,7 @@ export default function Double({
     className = '',
     title = 'Cancel'
 }: DoubleProps) {
-    const sizeClasses = {
-        sm: 'h-3 w-3',
-        md: 'h-4 w-4',
-        lg: 'h-5 w-5'
-    };
+
 
     const variantClasses = {
         default: 'text-gray-600 hover:text-gray-900',
