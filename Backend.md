@@ -147,3 +147,8 @@ npx prisma db seed
 - Winston logging with error tracking
 - Swagger documentation available at `/api`
 - Health check endpoint at root `/`
+
+
+
+1. npx prisma db push
+2. npx prisma migrate dev

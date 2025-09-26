@@ -26,7 +26,7 @@ describe('OrderbookModule', () => {
         expect(controller).toBeDefined();
     });
 
-    it('should provide OrderbookRefactoredService', () => {
+    it('should provide OrderbookService', () => {
         const service = module.get<OrderbookService>(OrderbookService);
         expect(service).toBeDefined();
     });
