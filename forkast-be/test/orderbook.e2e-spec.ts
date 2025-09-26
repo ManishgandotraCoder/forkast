@@ -322,6 +322,33 @@ describe('OrderbookController (e2e)', () => {
 
             expect(response.body.message).toContain('Sell order cannot be placed at current market price');
         });
+
+        it('should return 400 when buy order price equals current market price', async () => {
+            // First create user balance
+            await prisma.balance.create({
+                data: {
+                    userId,
+                    symbol: 'USD',
+                    amount: 100000,
+                    locked: 0,
+                },
+            });
+
+            const orderData = {
+                symbol: 'BTC-USD',
+                price: 64321.55, // Current market price from crypto constants
+                quantity: 1,
+                market: false,
+            };
+
+            const response = await request(app.getHttpServer())
+                .post('/orderbook/buy')
+                .set('Authorization', `Bearer ${authToken}`)
+                .send(orderData)
+                .expect(400);
+
+            expect(response.body.message).toContain('Buy order cannot be placed at current market price');
+        });
     });
 
     describe('GET /orderbook', () => {

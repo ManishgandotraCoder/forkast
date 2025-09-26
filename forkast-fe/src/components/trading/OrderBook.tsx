@@ -145,6 +145,16 @@ export default function OrderBook() {
                         asks={orderBook.asks}
                         timestamp={orderBook.timestamp}
                         isOrderBook={true}
+                        onRefresh={() => fetchOrderBook(symbol)}
+                        onPriceClick={(price, side) => {
+                            // Handle price click - could open order form with pre-filled price
+                            console.log(`Clicked ${side} price: ${price}`);
+                            // You could emit an event or call a callback to open order form
+                            // For now, we'll just log it, but this could trigger a modal or navigation
+                            alert(`Selected ${side} price: $${price.toFixed(2)}. This price matches the current market price and can be used for trading.`);
+                        }}
+                        showDepth={true}
+                        maxDepth={10}
                     />
 
                     {/* Pagination */}

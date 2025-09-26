@@ -132,6 +132,19 @@ export class OrderbookService {
         try {
             this.validateSymbol(symbol);
 
+            // Validate price matches current market price for limit orders
+            if (market) {
+                const currentPrice = this.getCurrentMarketPrice(symbol);
+                const tolerance = 0.01; // 1% tolerance
+                const priceDifference = Math.abs(price - currentPrice) / currentPrice;
+
+                if (priceDifference > tolerance) {
+                    throw new BadRequestException(
+                        `Price must match current market price ($${currentPrice.toFixed(2)}) within 1% tolerance. Your price: $${price.toFixed(2)}`
+                    );
+                }
+            }
+
             return await this.prisma.$transaction(async (tx) => {
                 const order = await this.createOrder(tx, userId, type, symbol, price, quantity, market);
 
@@ -193,14 +206,12 @@ export class OrderbookService {
         price: number,
         type: 'buy' | 'sell',
     ): Promise<Order> {
-        // For sell orders, check if price equals current market price
-        if (type === 'sell') {
-            const currentMarketPrice = this.getCurrentMarketPrice(symbol);
-            if (price === currentMarketPrice) {
-                throw new BadRequestException(
-                    `Sell order cannot be placed at current market price (${currentMarketPrice}). Use market order instead.`
-                );
-            }
+        // For both buy and sell orders, check if price equals current market price
+        const currentMarketPrice = this.getCurrentMarketPrice(symbol);
+        if (price === currentMarketPrice) {
+            throw new BadRequestException(
+                `${type === 'buy' ? 'Buy' : 'Sell'} order cannot be placed at current market price (${currentMarketPrice}). Use market order instead.`
+            );
         }
 
         const oppositeType = type === 'buy' ? 'sell' : 'buy';

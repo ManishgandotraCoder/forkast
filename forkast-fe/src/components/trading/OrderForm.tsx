@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { ordersAPI, portfolioAPI } from '@/lib/api';
-import { TrendingUp, TrendingDown } from 'lucide-react';
+import { TrendingUp, TrendingDown, AlertCircle, CheckCircle } from 'lucide-react';
 
 export default function OrderForm() {
     const [orderData, setOrderData] = useState({
@@ -17,6 +17,9 @@ export default function OrderForm() {
     const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
     const [balances, setBalances] = useState<{ asset: string; available: number; locked: number; total: number }[]>([]);
     const [loadingBalances, setLoadingBalances] = useState(false);
+    const [currentPrice, setCurrentPrice] = useState<number | null>(null);
+    const [loadingPrice, setLoadingPrice] = useState(false);
+    const [priceValidation, setPriceValidation] = useState<{ isValid: boolean; message: string } | null>(null);
 
     // Fetch user balances
     useEffect(() => {
@@ -36,6 +39,30 @@ export default function OrderForm() {
         fetchBalances();
     }, []);
 
+    // Fetch current price for the selected symbol
+    useEffect(() => {
+        const fetchCurrentPrice = async () => {
+            setLoadingPrice(true);
+            try {
+                const response = await fetch(`/api/crypto/${orderData.symbol}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    setCurrentPrice(data.regularMarketPrice || data.price);
+                } else {
+                    console.error('Failed to fetch current price');
+                    setCurrentPrice(null);
+                }
+            } catch (error) {
+                console.error('Failed to fetch current price:', error);
+                setCurrentPrice(null);
+            } finally {
+                setLoadingPrice(false);
+            }
+        };
+
+        fetchCurrentPrice();
+    }, [orderData.symbol]);
+
     // Get available balance for the base asset (what we're selling)
     const getAvailableBalance = () => {
         const baseAsset = orderData.symbol.split('-')[0]; // Extract base asset (e.g., 'BTC' from 'BTC-USD')
@@ -44,6 +71,38 @@ export default function OrderForm() {
     };
 
     const availableBalance = getAvailableBalance();
+
+    // Validate price against current market price
+    const validatePrice = (price: string) => {
+        if (!price || !currentPrice) {
+            setPriceValidation(null);
+            return;
+        }
+
+        const orderPrice = parseFloat(price);
+        const tolerance = 0.01; // 1% tolerance for price matching
+
+        if (Math.abs(orderPrice - currentPrice) / currentPrice <= tolerance) {
+            setPriceValidation({
+                isValid: true,
+                message: `Price matches current market price (${currentPrice.toFixed(2)})`
+            });
+        } else {
+            setPriceValidation({
+                isValid: false,
+                message: `Price must match current market price (${currentPrice.toFixed(2)}) within 1% tolerance`
+            });
+        }
+    };
+
+    // Validate price when it changes
+    useEffect(() => {
+        if (orderData.type === 'LIMIT' && orderData.price) {
+            validatePrice(orderData.price);
+        } else {
+            setPriceValidation(null);
+        }
+    }, [orderData.price, orderData.type, currentPrice]);
 
     const validateForm = () => {
         if (!orderData.quantity || parseFloat(orderData.quantity) <= 0) {
@@ -55,6 +114,20 @@ export default function OrderForm() {
         if (orderData.type === 'LIMIT' && (!orderData.price || parseFloat(orderData.price) <= 0)) {
             setMessage({ type: 'error', text: 'Price must be greater than 0 for limit orders' });
             return false;
+        }
+
+        // Validate price matches current market price
+        if (orderData.type === 'LIMIT' && orderData.price && currentPrice) {
+            const orderPrice = parseFloat(orderData.price);
+            const tolerance = 0.01; // 1% tolerance
+
+            if (Math.abs(orderPrice - currentPrice) / currentPrice > tolerance) {
+                setMessage({
+                    type: 'error',
+                    text: `Price must match current market price ($${currentPrice.toFixed(2)}) within 1% tolerance. Your price: $${orderPrice.toFixed(2)}`
+                });
+                return false;
+            }
         }
 
         // For sell orders, check if user has enough balance
@@ -116,6 +189,27 @@ export default function OrderForm() {
     return (
         <div className="bg-white rounded-lg shadow p-6">
             <h3 className="text-lg font-medium text-gray-900 mb-4">Place Order</h3>
+
+            {/* Current Price Display */}
+            {currentPrice && (
+                <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <span className="text-sm font-medium text-blue-900">Current Market Price:</span>
+                            <span className="ml-2 text-lg font-bold text-blue-900">${currentPrice.toFixed(2)}</span>
+                        </div>
+                        {orderData.type === 'LIMIT' && (
+                            <button
+                                type="button"
+                                onClick={() => setOrderData({ ...orderData, price: currentPrice.toFixed(2) })}
+                                className="px-3 py-1 text-xs font-medium text-blue-700 bg-blue-100 hover:bg-blue-200 rounded-md transition-colors"
+                            >
+                                Use Current Price
+                            </button>
+                        )}
+                    </div>
+                </div>
+            )}
 
             {message && (
                 <div className={`mb-4 p-3 rounded ${message.type === 'success' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
@@ -259,18 +353,50 @@ export default function OrderForm() {
                         <div>
                             <label htmlFor="price" className="block text-sm font-medium text-gray-700">
                                 Price (USD)
+                                {currentPrice && (
+                                    <span className="ml-2 text-xs text-gray-500">
+                                        (Current: ${currentPrice.toFixed(2)})
+                                    </span>
+                                )}
                             </label>
-                            <input
-                                type="number"
-                                id="price"
-                                required
-                                step="0.01"
-                                min="0"
-                                placeholder="0.00"
-                                value={orderData.price}
-                                onChange={(e) => setOrderData({ ...orderData, price: e.target.value })}
-                                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                            />
+                            <div className="relative">
+                                <input
+                                    type="number"
+                                    id="price"
+                                    required
+                                    step="0.01"
+                                    min="0"
+                                    placeholder="0.00"
+                                    value={orderData.price}
+                                    onChange={(e) => setOrderData({ ...orderData, price: e.target.value })}
+                                    className={`mt-1 block w-full px-3 py-2 pr-10 border rounded-md shadow-sm focus:outline-none sm:text-sm ${priceValidation?.isValid === true
+                                            ? 'border-green-300 focus:ring-green-500 focus:border-green-500'
+                                            : priceValidation?.isValid === false
+                                                ? 'border-red-300 focus:ring-red-500 focus:border-red-500'
+                                                : 'border-gray-300 focus:ring-indigo-500 focus:border-indigo-500'
+                                        }`}
+                                />
+                                {priceValidation && (
+                                    <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+                                        {priceValidation.isValid ? (
+                                            <CheckCircle className="h-5 w-5 text-green-500" />
+                                        ) : (
+                                            <AlertCircle className="h-5 w-5 text-red-500" />
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                            {priceValidation && (
+                                <div className={`mt-1 text-xs flex items-center ${priceValidation.isValid ? 'text-green-600' : 'text-red-600'
+                                    }`}>
+                                    {priceValidation.isValid ? (
+                                        <CheckCircle className="h-3 w-3 mr-1" />
+                                    ) : (
+                                        <AlertCircle className="h-3 w-3 mr-1" />
+                                    )}
+                                    {priceValidation.message}
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>
@@ -291,13 +417,15 @@ export default function OrderForm() {
 
                 <button
                     type="submit"
-                    disabled={loading}
+                    disabled={loading || (orderData.type === 'LIMIT' && priceValidation?.isValid === false)}
                     className={`w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white ${orderData.side === 'BUY'
                         ? 'bg-green-600 hover:bg-green-700 focus:ring-green-500'
                         : 'bg-red-600 hover:bg-red-700 focus:ring-red-500'
                         } focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed`}
                 >
-                    {loading ? 'Placing Order...' : `${orderData.side} ${orderData.symbol}`}
+                    {loading ? 'Placing Order...' :
+                        (orderData.type === 'LIMIT' && priceValidation?.isValid === false) ? 'Price Must Match Market Price' :
+                            `${orderData.side} ${orderData.symbol}`}
                 </button>
             </form>
         </div>
