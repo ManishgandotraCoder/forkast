@@ -1,47 +1,10 @@
 'use client';
 
-import { TrendingUp, ShoppingCart, BarChart3, Activity } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { useEffect } from 'react';
-
-const quickActions = [
-    {
-        name: 'Place Buy Order',
-        description: 'Create a new buy order',
-        icon: TrendingUp,
-        href: '/orders/new?type=buy',
-        gradient: 'from-green-500 to-green-600',
-    },
-    {
-        name: 'Place Sell Order',
-        description: 'Create a new sell order',
-        icon: TrendingUp,
-        href: '/orders/new?type=sell',
-        gradient: 'from-red-500 to-red-600',
-    },
-    {
-        name: 'View Orders',
-        description: 'Manage your active orders',
-        icon: ShoppingCart,
-        href: '/orders',
-        gradient: 'from-blue-500 to-blue-600',
-    },
-    {
-        name: 'Trade History',
-        description: 'View your trading history',
-        icon: BarChart3,
-        href: '/trades',
-        gradient: 'from-purple-500 to-purple-600',
-    },
-    {
-        name: 'Order Book',
-        description: 'View market depth',
-        icon: Activity,
-        href: '/orderbook',
-        gradient: 'from-indigo-500 to-indigo-600',
-    },
-];
+import RealTimeCryptoDashboard from '@/components/trading/RealTimeCryptoDashboard';
+import { TrendingUp, BarChart3, Activity, DollarSign } from 'lucide-react';
 
 export default function Dashboard() {
     const router = useRouter();
@@ -67,49 +30,82 @@ export default function Dashboard() {
     return (
         <div className="space-y-8">
             {/* Header */}
-            <div className="border-b pb-4">
-                <h1 className="text-4xl font-bold text-gray-900 tracking-tight">
-                    Trading Dashboard
-                </h1>
-                <p className="mt-2 text-gray-600">
-                    Welcome back! Here’s an overview of your trading activity.
-                </p>
-            </div>
-
-            {/* Quick Actions */}
-            <div>
-                <h2 className="text-2xl font-semibold text-gray-800 mb-6">
-                    Quick Actions
-                </h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {quickActions.map((action) => {
-                        const Icon = action.icon;
-                        return (
-                            <button
-                                key={action.name}
-                                onClick={() => router.push(action.href)}
-                                className={`
-                  relative overflow-hidden rounded-2xl p-6 text-left 
-                  bg-gradient-to-br ${action.gradient} text-white 
-                  transition-transform duration-300 hover:scale-105 hover:shadow-xl
-                `}
-                            >
-                                <div className="flex items-center justify-between">
-                                    <div>
-                                        <h3 className="text-lg font-semibold">{action.name}</h3>
-                                        <p className="text-sm opacity-90 mt-1">
-                                            {action.description}
-                                        </p>
-                                    </div>
-                                    <div className="bg-white/20 p-2 rounded-full">
-                                        <Icon className="h-6 w-6" />
-                                    </div>
-                                </div>
-                            </button>
-                        );
-                    })}
+            <div className="bg-white rounded-lg shadow-sm p-6">
+                <div className="flex items-center justify-between">
+                    <div>
+                        <h1 className="text-3xl font-bold text-gray-900">
+                            Welcome back, {user?.name || 'Trader'}!
+                        </h1>
+                        <p className="text-gray-600 mt-2">
+                            Monitor real-time cryptocurrency prices and manage your trading portfolio
+                        </p>
+                    </div>
+                    <div className="flex items-center space-x-4">
+                        <div className="text-right">
+                            <div className="text-sm text-gray-500">Portfolio Value</div>
+                            <div className="text-2xl font-bold text-gray-900">$0.00</div>
+                        </div>
+                        <div className="text-right">
+                            <div className="text-sm text-gray-500">24h Change</div>
+                            <div className="text-2xl font-bold text-green-600">+0.00%</div>
+                        </div>
+                    </div>
                 </div>
             </div>
+
+            {/* Quick Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <div className="bg-white rounded-lg shadow-sm p-6">
+                    <div className="flex items-center">
+                        <div className="p-2 bg-blue-100 rounded-lg">
+                            <DollarSign className="h-6 w-6 text-blue-600" />
+                        </div>
+                        <div className="ml-4">
+                            <p className="text-sm font-medium text-gray-600">Total Balance</p>
+                            <p className="text-2xl font-bold text-gray-900">$0.00</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="bg-white rounded-lg shadow-sm p-6">
+                    <div className="flex items-center">
+                        <div className="p-2 bg-green-100 rounded-lg">
+                            <TrendingUp className="h-6 w-6 text-green-600" />
+                        </div>
+                        <div className="ml-4">
+                            <p className="text-sm font-medium text-gray-600">Active Orders</p>
+                            <p className="text-2xl font-bold text-gray-900">0</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="bg-white rounded-lg shadow-sm p-6">
+                    <div className="flex items-center">
+                        <div className="p-2 bg-purple-100 rounded-lg">
+                            <BarChart3 className="h-6 w-6 text-purple-600" />
+                        </div>
+                        <div className="ml-4">
+                            <p className="text-sm font-medium text-gray-600">Total Trades</p>
+                            <p className="text-2xl font-bold text-gray-900">0</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="bg-white rounded-lg shadow-sm p-6">
+                    <div className="flex items-center">
+                        <div className="p-2 bg-orange-100 rounded-lg">
+                            <Activity className="h-6 w-6 text-orange-600" />
+                        </div>
+                        <div className="ml-4">
+                            <p className="text-sm font-medium text-gray-600">P&L Today</p>
+                            <p className="text-2xl font-bold text-gray-900">$0.00</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Real-Time Crypto Dashboard */}
+            <RealTimeCryptoDashboard />
         </div>
     );
 }

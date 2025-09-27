@@ -11,6 +11,7 @@ import { WinstonModule } from 'nest-winston';
 import * as winston from 'winston';
 import { OrderbookModule } from './model/orderbook/orderbook.module';
 import { BalanceModule } from './model/balance/balance.module';
+import { WebSocketModule } from './websocket/websocket.module';
 import configuration from './config/configuration';
 
 @Module({
@@ -61,6 +62,7 @@ import configuration from './config/configuration';
     CryptoModule,
     OrderbookModule,
     BalanceModule,
+    WebSocketModule,
   ],
   controllers: [AppController, UserController],
   providers: [AppService, UserService, PrismaService],
