@@ -323,20 +323,7 @@ export default function TradesPage() {
                 </div>
             ),
         },
-        {
-            key: 'orderId',
-            label: 'Order',
-            align: 'right' as const,
-            render: (value: string) => (
-                <button
-                    onClick={() => window.open(`/orders/${value}`, '_blank')}
-                    className="text-indigo-600 hover:text-indigo-900 flex items-center justify-end"
-                >
-                    <span className="mr-1">{value}</span>
-                    <ExternalLink className="h-3 w-3" />
-                </button>
-            ),
-        },
+
     ];
 
     const getTotalValue = () => {
