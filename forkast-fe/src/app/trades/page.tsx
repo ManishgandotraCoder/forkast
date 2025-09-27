@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Search, Filter, TrendingUp, TrendingDown, ExternalLink } from 'lucide-react';
+import { Search, TrendingUp } from 'lucide-react';
 import { tradesAPI } from '@/lib/api';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
@@ -314,33 +314,7 @@ export default function TradesPage() {
                 </div>
             ),
         },
-        {
-            key: 'fees',
-            label: 'Fees',
-            render: (value: number) => (
-                <div className="text-sm text-gray-500 font-mono">
-                    ${Number(value || 0).toFixed(2)}
-                </div>
-            ),
-        },
-
     ];
-
-    const getTotalValue = () => {
-        return filteredTrades?.reduce((sum, trade) => sum + Number(trade.value || 0), 0);
-    };
-
-    const getBuyVolume = () => {
-        return filteredTrades?.filter(trade => trade.side === 'buy').reduce((sum, trade) => sum + Number(trade.value || 0), 0);
-    };
-
-    const getSellVolume = () => {
-        return filteredTrades?.filter(trade => trade.side === 'sell').reduce((sum, trade) => sum + Number(trade.value || 0), 0);
-    };
-
-    const getTotalFees = () => {
-        return filteredTrades?.reduce((sum, trade) => sum + Number(trade.fees || 0), 0);
-    };
 
     if (authLoading) {
         return (
@@ -356,10 +330,7 @@ export default function TradesPage() {
     return (
         <div className="space-y-6">
             {/* Header */}
-            <div>
-                <h1 className="text-3xl font-bold text-gray-900">Trading History</h1>
-                <p className="mt-2 text-gray-600">View your completed trades and execution details</p>
-            </div>
+
 
             {/* Loading State */}
             {loading && (
@@ -389,57 +360,6 @@ export default function TradesPage() {
             {/* Content - only show when not loading and no error */}
             {!loading && !error && (
                 <>
-                    {/* Stats Summary */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                        <div className="bg-white rounded-lg shadow p-6">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="text-sm font-medium text-gray-500">Total Trades</p>
-                                    <p className="text-2xl font-bold text-gray-900">{filteredTrades?.length}</p>
-                                </div>
-                                <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                                    <Filter className="h-4 w-4 text-blue-600" />
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="bg-white rounded-lg shadow p-6">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="text-sm font-medium text-gray-500">Total Volume</p>
-                                    <p className="text-2xl font-bold text-gray-900">{formatPrice(getTotalValue())}</p>
-                                </div>
-                                <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-                                    <TrendingUp className="h-4 w-4 text-green-600" />
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="bg-white rounded-lg shadow p-6">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="text-sm font-medium text-gray-500">Buy Volume</p>
-                                    <p className="text-2xl font-bold text-green-600">{formatPrice(getBuyVolume())}</p>
-                                </div>
-                                <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-                                    <TrendingUp className="h-4 w-4 text-green-600" />
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="bg-white rounded-lg shadow p-6">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="text-sm font-medium text-gray-500">Sell Volume</p>
-                                    <p className="text-2xl font-bold text-red-600">{formatPrice(getSellVolume())}</p>
-                                </div>
-                                <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center">
-                                    <TrendingDown className="h-4 w-4 text-red-600" />
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
                     {/* Filters */}
                     <div className="bg-white rounded-lg shadow p-6">
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -500,7 +420,6 @@ export default function TradesPage() {
                     {/* Trades Table */}
                     <DataTable
                         title={`Trade History (${filteredTrades?.length} trades)`}
-                        subtitle={`Total Fees: ${formatPrice(getTotalFees())}`}
                         columns={columns}
                         data={filteredTrades}
                         loading={loading}
