@@ -8,23 +8,21 @@ import { useCryptoSymbols } from '@/lib/useCryptoSymbols';
 import {
     TrendingUp,
     Users,
-    RefreshCw,
-    Filter,
     Search,
     ChevronUp,
     ChevronDown,
     BarChart3,
-    Eye,
-    EyeOff,
-    Download
 } from 'lucide-react';
 import Pagination from '@/components/ui/Pagination';
+import ButtonComponent from '@/components/ui/Button';
+import OrderModal from '@/components/trading/OrderModal';
 
 interface OrderBookEntry {
     price: number | string;
     quantity: number | string;
     total?: number | string;
     userName?: string;
+    email?: string;
 }
 
 interface OrderBookData {
@@ -32,6 +30,7 @@ interface OrderBookData {
     bids: OrderBookEntry[];
     asks: OrderBookEntry[];
     timestamp: string;
+    email?: string;
 }
 
 interface Order {
@@ -40,6 +39,7 @@ interface Order {
     quantity: number;
     user: {
         name: string;
+        email: string;
     };
 }
 export default function OrderBookPage() {
@@ -53,21 +53,7 @@ export default function OrderBookPage() {
     // Enhanced UI state
     const [searchTerm, setSearchTerm] = useState('');
     const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
-    const [isRefreshing, setIsRefreshing] = useState(false);
-    const [selectedRow, setSelectedRow] = useState<number | null>(null);
-    const [refreshInterval] = useState(5000); // 5 seconds
-
-    // Advanced features state
-    const [showDepthChart, setShowDepthChart] = useState(true);
-    const [showMarketStats, setShowMarketStats] = useState(true);
-    const [compactView, setCompactView] = useState(false);
-    const [selectedPrice, setSelectedPrice] = useState<number | null>(null);
-    const [hoveredOrder, setHoveredOrder] = useState<number | null>(null);
-    const [pricePrecision, setPricePrecision] = useState(2);
-    const [volumePrecision, setVolumePrecision] = useState(8);
     const [showZeroVolume, setShowZeroVolume] = useState(false);
-    const [groupByPrice, setGroupByPrice] = useState(false);
-    const [groupSize, setGroupSize] = useState(1);
 
     // Pagination state
     const [currentPage, setCurrentPage] = useState(1);
@@ -75,47 +61,36 @@ export default function OrderBookPage() {
     const [totalItems, setTotalItems] = useState(0);
     const [totalPages, setTotalPages] = useState(0);
 
+    // Order modal state
+    const [orderModal, setOrderModal] = useState<{
+        isOpen: boolean;
+        type: 'buy' | 'sell';
+        suggestedPrice: number;
+    }>({
+        isOpen: false,
+        type: 'buy',
+        suggestedPrice: 0
+    });
+
     const { cryptos: cryptoSymbols } = useCryptoSymbols();
+    console.log(user);
 
     // Enhanced utility functions
     const formatPrice = useCallback((price: number | string | null | undefined) => {
         if (price === null || price === undefined) return '0.00';
         const numPrice = typeof price === 'string' ? parseFloat(price) : price;
         if (typeof numPrice !== 'number' || isNaN(numPrice)) return '0.00';
-        return numPrice.toFixed(pricePrecision);
-    }, [pricePrecision]);
+        return numPrice.toFixed(2);
+    }, []);
 
     const formatQuantity = useCallback((quantity: number | string) => {
         const numQuantity = typeof quantity === 'string' ? parseFloat(quantity) : quantity;
-        return isNaN(numQuantity) ? '0.00000000' : numQuantity.toFixed(volumePrecision);
-    }, [volumePrecision]);
+        return isNaN(numQuantity) ? '0.00000000' : numQuantity.toFixed(8);
+    }, []);
 
     const formatTimestamp = (timestamp?: string) => {
         if (!timestamp) return '';
         return new Date(timestamp).toLocaleTimeString();
-    };
-
-    const formatCurrency = useCallback((amount: number | string) => {
-        const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
-        if (isNaN(numAmount)) return '$0.00';
-        return new Intl.NumberFormat('en-US', {
-            style: 'currency',
-            currency: 'USD',
-            minimumFractionDigits: pricePrecision,
-            maximumFractionDigits: pricePrecision
-        }).format(numAmount);
-    }, [pricePrecision]);
-
-    const formatVolume = (volume: number | string) => {
-        const numVolume = typeof volume === 'string' ? parseFloat(volume) : volume;
-        if (isNaN(numVolume)) return '0';
-
-        if (numVolume >= 1000000) {
-            return (numVolume / 1000000).toFixed(1) + 'M';
-        } else if (numVolume >= 1000) {
-            return (numVolume / 1000).toFixed(1) + 'K';
-        }
-        return numVolume.toFixed(volumePrecision);
     };
 
     const calculateSpread = (bestBid: number, bestAsk: number) => {
@@ -124,44 +99,6 @@ export default function OrderBookPage() {
 
     const calculateSpreadPercentage = (bestBid: number, bestAsk: number) => {
         return ((bestAsk - bestBid) / bestBid) * 100;
-    };
-
-    // Group orders by price levels
-    const groupOrdersByPrice = (orders: OrderBookEntry[], groupSize: number, direction: 'asc' | 'desc') => {
-        const grouped = new Map<number, OrderBookEntry>();
-
-        orders.forEach(order => {
-            const price = typeof order.price === 'string' ? parseFloat(order.price) : order.price;
-            const quantity = typeof order.quantity === 'string' ? parseFloat(order.quantity) : order.quantity;
-
-            // Round price to nearest group size
-            const groupedPrice = direction === 'asc'
-                ? Math.floor(price / groupSize) * groupSize
-                : Math.ceil(price / groupSize) * groupSize;
-
-            if (grouped.has(groupedPrice)) {
-                const existing = grouped.get(groupedPrice)!;
-                const existingQty = typeof existing.quantity === 'string' ? parseFloat(existing.quantity) : existing.quantity;
-                grouped.set(groupedPrice, {
-                    ...existing,
-                    quantity: existingQty + quantity,
-                    total: (existingQty + quantity) * groupedPrice
-                });
-            } else {
-                grouped.set(groupedPrice, {
-                    ...order,
-                    price: groupedPrice,
-                    quantity: quantity,
-                    total: quantity * groupedPrice
-                });
-            }
-        });
-
-        return Array.from(grouped.values()).sort((a, b) => {
-            const priceA = typeof a.price === 'string' ? parseFloat(a.price) : a.price;
-            const priceB = typeof b.price === 'string' ? parseFloat(b.price) : b.price;
-            return direction === 'asc' ? priceA - priceB : priceB - priceA;
-        });
     };
 
     const fetchOrderBook = useCallback(async (symbol: string) => {
@@ -190,14 +127,14 @@ export default function OrderBookPage() {
                 setTotalItems(Math.max(pagination.totalBuys, pagination.totalSells));
                 setTotalPages(pagination.totalPages);
 
-                const bids = buys.map(b => ({ price: b.price, quantity: b.quantity, userName: b.user.name }));
-                const asks = sells.map(s => ({ price: s.price, quantity: s.quantity, userName: s.user.name }));
+                const bids = buys.map(b => ({ price: b.price, quantity: b.quantity, userName: b.user.name, email: b.user.email }));
+                const asks = sells.map(s => ({ price: s.price, quantity: s.quantity, userName: s.user.name, email: s.user.email }));
                 setOrderBook({ symbol, bids, asks, timestamp: new Date().toISOString() });
             } else {
                 // Fallback to old format
                 const { buys, sells }: { buys: Order[], sells: Order[] } = response.data;
-                const bids = buys.map(b => ({ price: b.price, quantity: b.quantity, userName: b.user.name }));
-                const asks = sells.map(s => ({ price: s.price, quantity: s.quantity, userName: s.user.name }));
+                const bids = buys.map(b => ({ price: b.price, quantity: b.quantity, userName: b.user.name, email: b.user.email }));
+                const asks = sells.map(s => ({ price: s.price, quantity: s.quantity, userName: s.user.name, email: s.user.email }));
                 setOrderBook({ symbol, bids, asks, timestamp: new Date().toISOString() });
                 setTotalItems(buys.length + sells.length);
                 setTotalPages(1);
@@ -226,8 +163,30 @@ export default function OrderBookPage() {
         setCurrentPage(1); // Reset to first page when changing items per page
     };
 
+    // Order modal handlers
+    const handleOpenOrderModal = (type: 'buy' | 'sell', suggestedPrice: number) => {
+        setOrderModal({
+            isOpen: true,
+            type,
+            suggestedPrice
+        });
+    };
+
+    const handleCloseOrderModal = () => {
+        setOrderModal({
+            isOpen: false,
+            type: 'buy',
+            suggestedPrice: 0
+        });
+    };
+
+    const handleOrderPlaced = () => {
+        // Refresh the orderbook data after placing an order
+        fetchOrderBook(symbol);
+    };
+
     // Enhanced data processing with market depth, grouping, and cumulative volumes
-    const { processedBids, processedAsks, maxVolume, marketStats } = useMemo(() => {
+    const { processedBids, processedAsks } = useMemo(() => {
         if (!orderBook) return {
             processedBids: [],
             processedAsks: [],
@@ -253,12 +212,6 @@ export default function OrderBookPage() {
             const priceB = typeof b.price === 'string' ? parseFloat(b.price) : b.price;
             return priceA - priceB; // Lowest price first
         });
-
-        // Group orders by price if enabled
-        if (groupByPrice && groupSize > 1) {
-            sortedBids = groupOrdersByPrice(sortedBids, groupSize, 'desc');
-            sortedAsks = groupOrdersByPrice(sortedAsks, groupSize, 'asc');
-        }
 
         // Filter out zero volume orders if disabled
         if (!showZeroVolume) {
@@ -313,7 +266,7 @@ export default function OrderBookPage() {
         };
 
         return { processedBids, processedAsks, maxVolume, marketStats };
-    }, [orderBook, groupByPrice, groupSize, showZeroVolume]);
+    }, [orderBook, showZeroVolume]);
 
     // Filter and sort data
     const filteredAndSortedData = useMemo(() => {
@@ -386,85 +339,6 @@ export default function OrderBookPage() {
         }));
     }, []);
 
-    const handleRefresh = useCallback(async () => {
-        if (symbol) {
-            setIsRefreshing(true);
-            try {
-                await fetchOrderBook(symbol);
-            } finally {
-                setIsRefreshing(false);
-            }
-        }
-    }, [symbol, fetchOrderBook]);
-
-    const handlePriceClick = useCallback((price: number, side: 'buy' | 'sell') => {
-        setSelectedPrice(price);
-        console.log(`Clicked ${side} price: ${price}`);
-        // In a real app, this would trigger order placement or price selection
-        // For now, we'll just show a notification
-        const message = `Selected ${side} price: ${formatCurrency(price)}. This price can be used for trading.`;
-        // You could replace this with a toast notification or modal
-        console.log(message);
-    }, [formatCurrency]);
-
-    const handleOrderHover = useCallback((index: number | null) => {
-        setHoveredOrder(index);
-    }, []);
-
-    const handleQuickTrade = useCallback((price: number, side: 'buy' | 'sell', quantity: number) => {
-        // Quick trade functionality - in a real app this would place an order
-        console.log(`Quick ${side} trade: ${quantity} at ${formatCurrency(price)}`);
-        // This could trigger a modal or API call
-    }, [formatCurrency]);
-
-    const handleExportData = useCallback(() => {
-        if (!orderBook) return;
-
-        const data = {
-            symbol: orderBook.symbol,
-            timestamp: orderBook.timestamp,
-            bids: filteredAndSortedData.filteredBids,
-            asks: filteredAndSortedData.filteredAsks,
-            marketStats
-        };
-
-        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `orderbook-${orderBook.symbol}-${new Date().toISOString().split('T')[0]}.json`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-    }, [orderBook, filteredAndSortedData, marketStats]);
-
-    // Keyboard navigation
-    const handleKeyDown = useCallback((event: React.KeyboardEvent, price: number, side: 'buy' | 'sell', index: number) => {
-        if (event.key === 'Enter' || event.key === ' ') {
-            event.preventDefault();
-            handlePriceClick(price, side);
-        } else if (event.key === 'ArrowDown') {
-            event.preventDefault();
-            setSelectedRow(index + 1);
-        } else if (event.key === 'ArrowUp') {
-            event.preventDefault();
-            setSelectedRow(Math.max(0, index - 1));
-        }
-    }, [handlePriceClick]);
-
-    // Auto-refresh functionality
-    useEffect(() => {
-        let interval: NodeJS.Timeout;
-        if (symbol) {
-            interval = setInterval(() => {
-                fetchOrderBook(symbol);
-            }, refreshInterval);
-        }
-        return () => {
-            if (interval) clearInterval(interval);
-        };
-    }, [symbol, refreshInterval, fetchOrderBook]);
     useEffect(() => {
         if (!loading && !user) {
             router.push('/');
@@ -484,8 +358,6 @@ export default function OrderBookPage() {
 
     return (
         <div className="space-y-6">
-            {/* Enhanced Controls */}
-
 
             {loading ? (
                 <div className="bg-white rounded-lg shadow border border-gray-200 p-12">
@@ -497,7 +369,7 @@ export default function OrderBookPage() {
             ) : orderBook ? (
                 <div className="bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden">
                     {/* Enhanced Header with Market Stats */}
-                    <div className="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
+                    <div className="px-6 py-4 border-b border-gray-200 bg-gray-300 text-black">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center space-x-4">
                                 <div className="flex items-center space-x-2">
@@ -505,29 +377,10 @@ export default function OrderBookPage() {
                                     <h2 className="text-2xl font-bold">Order Book</h2>
                                 </div>
                                 <div className="flex items-center space-x-2">
-                                    <span className="px-3 py-1 bg-white/20 text-white text-sm font-medium rounded-full">
+                                    <span className="px-3 py-1 bg-gray-600 text-white text-sm font-medium rounded-full">
                                         {orderBook.symbol}
                                     </span>
-                                    <span className="text-sm opacity-90">
-                                        {formatTimestamp(orderBook.timestamp)}
-                                    </span>
                                 </div>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                                <button
-                                    onClick={handleRefresh}
-                                    disabled={isRefreshing}
-                                    className="p-2 text-white/80 hover:text-white hover:bg-white/20 rounded-lg transition-colors disabled:opacity-50"
-                                >
-                                    <RefreshCw className={`h-5 w-5 ${isRefreshing ? 'animate-spin' : ''}`} />
-                                </button>
-                                <button
-                                    onClick={handleExportData}
-                                    className="p-2 text-white/80 hover:text-white hover:bg-white/20 rounded-lg transition-colors"
-                                    title="Export Data"
-                                >
-                                    <Download className="h-5 w-5" />
-                                </button>
                             </div>
                         </div>
                     </div>
@@ -670,7 +523,7 @@ export default function OrderBookPage() {
                                         <span className="sm:hidden">Tot</span>
                                     </th>
                                     <th className="px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">
-                                        Time
+                                        Actions
                                     </th>
                                 </tr>
                             </thead>
@@ -684,11 +537,11 @@ export default function OrderBookPage() {
                                     return (
                                         <tr
                                             key={`ask-${index}`}
-                                            className="hover:bg-red-50 transition-all duration-200 group"
+                                            className="hover:bg-green-50 transition-all duration-200 group"
                                         >
                                             <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-700 font-medium truncate" title={ask.userName}>
                                                 <div className="flex items-center">
-                                                    <div className="w-2 h-2 bg-red-500 rounded-full mr-2 flex-shrink-0"></div>
+                                                    <div className="w-2 h-2 bg-green-500 rounded-full mr-2 flex-shrink-0"></div>
                                                     <span className="truncate">{ask.userName || 'Anonymous'}</span>
                                                 </div>
                                             </td>
@@ -696,13 +549,17 @@ export default function OrderBookPage() {
                                                 <span className="text-xs sm:text-sm">{formatQuantity(ask.quantity)}</span>
                                             </td>
                                             <td
-                                                className={`px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-right font-mono font-semibold text-red-600 cursor-pointer hover:text-red-800 hover:bg-red-100 rounded transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50 ${selectedRow === index ? 'bg-red-100' : ''}`}
-                                                onClick={() => handlePriceClick(price, 'sell')}
-                                                onKeyDown={(e) => handleKeyDown(e, price, 'sell', index)}
+                                                className={`px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-right font-mono font-semibold text-green-600 cursor-pointer hover:text-green-800 hover:bg-green-100 rounded transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50`}
                                                 tabIndex={0}
-                                                title="Click to use this price (Enter/Space to select, Arrow keys to navigate)"
+                                                title="Click to buy at this price"
                                                 role="button"
-                                                aria-label={`Sell price ${formatPrice(ask.price)} - Click to use this price`}
+                                                aria-label={`Buy price ${formatPrice(ask.price)} - Click to buy at this price`}
+                                                onClick={() => {
+                                                    if (user?.email !== ask.email) {
+                                                        const askPrice = typeof ask.price === 'string' ? parseFloat(ask.price) : ask.price;
+                                                        handleOpenOrderModal('buy', askPrice);
+                                                    }
+                                                }}
                                             >
                                                 <span className="text-xs sm:text-sm">${formatPrice(ask.price)}</span>
                                             </td>
@@ -710,7 +567,16 @@ export default function OrderBookPage() {
                                                 <span className="text-xs sm:text-sm">${formatPrice(total)}</span>
                                             </td>
                                             <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-right text-gray-500 hidden md:table-cell">
-                                                <span className="text-xs">{formatTimestamp(ask.timestamp)}</span>
+                                                {user?.email !== ask.email ? (
+                                                    <ButtonComponent
+                                                        className='bg-green-500 hover:bg-green-600 text-white'
+                                                        title='Buy'
+                                                        onClick={() => {
+                                                            const askPrice = typeof ask.price === 'string' ? parseFloat(ask.price) : ask.price;
+                                                            handleOpenOrderModal('buy', askPrice);
+                                                        }}
+                                                    />
+                                                ) : null}
                                             </td>
                                         </tr>
                                     );
@@ -725,11 +591,11 @@ export default function OrderBookPage() {
                                     return (
                                         <tr
                                             key={`bid-${index}`}
-                                            className="hover:bg-green-50 transition-all duration-200 group"
+                                            className="hover:bg-red-50 transition-all duration-200 group"
                                         >
                                             <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-700 font-medium truncate" title={bid.userName}>
                                                 <div className="flex items-center">
-                                                    <div className="w-2 h-2 bg-green-500 rounded-full mr-2 flex-shrink-0"></div>
+                                                    <div className="w-2 h-2 bg-red-500 rounded-full mr-2 flex-shrink-0"></div>
                                                     <span className="truncate">{bid.userName || 'Anonymous'}</span>
                                                 </div>
                                             </td>
@@ -737,13 +603,17 @@ export default function OrderBookPage() {
                                                 <span className="text-xs sm:text-sm">{formatQuantity(bid.quantity)}</span>
                                             </td>
                                             <td
-                                                className={`px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-right font-mono font-semibold text-green-600 cursor-pointer hover:text-green-800 hover:bg-green-100 rounded transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50 ${selectedRow === index + filteredAndSortedData.filteredAsks.length ? 'bg-green-100' : ''}`}
-                                                onClick={() => handlePriceClick(price, 'buy')}
-                                                onKeyDown={(e) => handleKeyDown(e, price, 'buy', index + filteredAndSortedData.filteredAsks.length)}
+                                                className={`px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-right font-mono font-semibold text-red-600 cursor-pointer hover:text-red-800 hover:bg-red-100 rounded transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50`}
                                                 tabIndex={0}
-                                                title="Click to use this price (Enter/Space to select, Arrow keys to navigate)"
+                                                title="Click to sell at this price"
                                                 role="button"
-                                                aria-label={`Buy price ${formatPrice(bid.price)} - Click to use this price`}
+                                                aria-label={`Sell price ${formatPrice(bid.price)} - Click to sell at this price`}
+                                                onClick={() => {
+                                                    if (user?.email !== bid.email) {
+                                                        const bidPrice = typeof bid.price === 'string' ? parseFloat(bid.price) : bid.price;
+                                                        handleOpenOrderModal('sell', bidPrice);
+                                                    }
+                                                }}
                                             >
                                                 <span className="text-xs sm:text-sm">${formatPrice(bid.price)}</span>
                                             </td>
@@ -751,7 +621,16 @@ export default function OrderBookPage() {
                                                 <span className="text-xs sm:text-sm">${formatPrice(total)}</span>
                                             </td>
                                             <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-right text-gray-500 hidden md:table-cell">
-                                                <span className="text-xs">{formatTimestamp(bid.timestamp)}</span>
+                                                {user?.email !== bid.email ? (
+                                                    <ButtonComponent
+                                                        className='bg-red-500 hover:bg-red-600 text-white'
+                                                        title='Sell'
+                                                        onClick={() => {
+                                                            const bidPrice = typeof bid.price === 'string' ? parseFloat(bid.price) : bid.price;
+                                                            handleOpenOrderModal('sell', bidPrice);
+                                                        }}
+                                                    />
+                                                ) : null}
                                             </td>
                                         </tr>
                                     );
@@ -808,6 +687,16 @@ export default function OrderBookPage() {
                     />
                 </div>
             )}
+
+            {/* Order Modal */}
+            <OrderModal
+                isOpen={orderModal.isOpen}
+                onClose={handleCloseOrderModal}
+                orderType={orderModal.type}
+                symbol={symbol}
+                suggestedPrice={orderModal.suggestedPrice}
+                onOrderPlaced={handleOrderPlaced}
+            />
         </div>
     );
 }

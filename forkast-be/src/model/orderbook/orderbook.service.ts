@@ -1,125 +1,13 @@
 import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { Order, Trade } from '@prisma/client';
 import { PrismaService } from '../../prisma.service';
-import { cryptoList } from '../../constants/crypto';
+import { createOrder, getCurrentMarketPrice, handleLimitOrder, handleMarketOrder, transferBalance, validateSymbol } from './orderbook.utils';
 
 @Injectable()
 export class OrderbookService {
     protected readonly logger = new Logger(this.constructor.name);
 
     constructor(protected readonly prisma: PrismaService) { }
-
-    protected validateSymbol(symbol: string): void {
-        if (!cryptoList.some(c => c.symbol === symbol)) {
-            throw new BadRequestException(`Symbol ${symbol} not supported`);
-        }
-    }
-
-    protected getCurrentMarketPrice(symbol: string): number {
-        const crypto = cryptoList.find(c => c.symbol === symbol);
-        if (!crypto) {
-            throw new BadRequestException(`Symbol ${symbol} not supported`);
-        }
-        return crypto.price;
-    }
-
-    protected async createOrder(
-        tx: any,
-        userId: number,
-        type: 'buy' | 'sell',
-        symbol: string,
-        price: number,
-        quantity: number,
-        market: boolean,
-    ): Promise<Order> {
-        return tx.order.create({
-            data: {
-                userId,
-                type,
-                symbol,
-                price,
-                quantity,
-                market,
-                status: 'open',
-                filledQuantity: 0,
-            },
-        });
-    }
-
-    protected async recordTrade(
-        tx: any,
-        buyOrderId: number | null,
-        sellOrderId: number | null,
-        price: number,
-        quantity: number,
-        buyerUserId: number | null,
-        sellerUserId: number | null,
-    ): Promise<Trade> {
-        return tx.trade.create({
-            data: {
-                buyOrderId,
-                sellOrderId,
-                price,
-                quantity,
-                buyerUserId,
-                sellerUserId,
-            },
-        });
-    }
-
-    protected async updateOrderStatus(
-        tx: any,
-        orderId: number,
-        status: string,
-        filledQuantity?: number,
-    ): Promise<Order> {
-        const updateData: any = { status };
-        if (filledQuantity !== undefined) {
-            updateData.filledQuantity = filledQuantity;
-        }
-        return tx.order.update({
-            where: { id: orderId },
-            data: updateData,
-        });
-    }
-
-    protected async transferBalance(
-        tx: any,
-        fromUserId: number,
-        toUserId: number,
-        symbol: string,
-        amount: number,
-    ): Promise<void> {
-        // Decrement from user
-        await tx.balance.update({
-            where: { userId_symbol: { userId: fromUserId, symbol } },
-            data: { amount: { decrement: amount } },
-        });
-
-        // Increment to user
-        await tx.balance.upsert({
-            where: { userId_symbol: { userId: toUserId, symbol } },
-            update: { amount: { increment: amount } },
-            create: { userId: toUserId, symbol, amount },
-        });
-    }
-
-    protected async checkBalance(
-        tx: any,
-        userId: number,
-        symbol: string,
-        requiredAmount: number,
-    ): Promise<void> {
-        const balance = await tx.balance.findUnique({
-            where: { userId_symbol: { userId, symbol } },
-        });
-
-        if (!balance || balance.amount < requiredAmount) {
-            throw new BadRequestException(
-                `Insufficient balance for ${symbol}. Available: ${balance?.amount ?? 0}, Required: ${requiredAmount}`
-            );
-        }
-    }
 
     async placeOrder(
         userId: number,
@@ -130,11 +18,11 @@ export class OrderbookService {
         market: boolean,
     ): Promise<Order> {
         try {
-            this.validateSymbol(symbol);
+            validateSymbol(symbol);
 
             // Validate price matches current market price for limit orders
-            if (market) {
-                const currentPrice = this.getCurrentMarketPrice(symbol);
+            if (!market) {
+                const currentPrice = getCurrentMarketPrice(symbol);
                 const tolerance = 0.01; // 1% tolerance
                 const priceDifference = Math.abs(price - currentPrice) / currentPrice;
 
@@ -146,16 +34,16 @@ export class OrderbookService {
             }
 
             return await this.prisma.$transaction(async (tx) => {
-                const order = await this.createOrder(tx, userId, type, symbol, price, quantity, market);
+                const order = await createOrder(tx, userId, type, symbol, price, quantity, market);
 
                 this.logger.log(
                     `${type.toUpperCase()} order placed: id=${order.id} userId=${userId} ${symbol} price=${price} qty=${quantity} market=${market}`
                 );
 
                 if (market) {
-                    return await this.handleMarketOrder(tx, order, userId, symbol, quantity, price);
+                    return await handleMarketOrder(tx, order, userId, symbol, quantity, price);
                 } else {
-                    return await this.handleLimitOrder(tx, order, userId, symbol, quantity, price, type);
+                    return await handleLimitOrder(tx, order, userId, symbol, quantity, price, type);
                 }
             });
         } catch (error) {
@@ -167,124 +55,7 @@ export class OrderbookService {
         }
     }
 
-    private async handleMarketOrder(
-        tx: any,
-        order: Order,
-        userId: number,
-        symbol: string,
-        quantity: number,
-        price: number,
-    ): Promise<Order> {
-        if (order.type === 'sell') {
-            await this.checkBalance(tx, userId, symbol, quantity);
-            await this.transferBalance(tx, userId, 0, symbol, quantity);
-            await this.recordTrade(tx, null, order.id, price, quantity, 0, userId);
-        } else {
-            const mmBalance = await tx.balance.findUnique({
-                where: { userId_symbol: { userId: 0, symbol } },
-            });
-
-            if (!mmBalance || mmBalance.amount < quantity) {
-                throw new BadRequestException(
-                    `Insufficient market inventory for ${symbol}. Available: ${mmBalance?.amount ?? 0}, Required: ${quantity}`
-                );
-            }
-
-            await this.transferBalance(tx, 0, userId, symbol, quantity);
-            await this.recordTrade(tx, order.id, null, price, quantity, userId, 0);
-        }
-
-        return await this.updateOrderStatus(tx, order.id, 'filled', quantity);
-    }
-
-    private async handleLimitOrder(
-        tx: any,
-        order: Order,
-        userId: number,
-        symbol: string,
-        quantity: number,
-        price: number,
-        type: 'buy' | 'sell',
-    ): Promise<Order> {
-        // For both buy and sell orders, check if price equals current market price
-        const currentMarketPrice = this.getCurrentMarketPrice(symbol);
-        if (price === currentMarketPrice) {
-            throw new BadRequestException(
-                `${type === 'buy' ? 'Buy' : 'Sell'} order cannot be placed at current market price (${currentMarketPrice}). Use market order instead.`
-            );
-        }
-
-        const oppositeType = type === 'buy' ? 'sell' : 'buy';
-        const priceCondition = type === 'buy' ? { lte: price } : { gte: price };
-        const orderBy = type === 'buy'
-            ? [{ price: 'asc' }, { createdAt: 'asc' }]
-            : [{ price: 'desc' }, { createdAt: 'asc' }];
-
-        const matchingOrders = await tx.order.findMany({
-            where: {
-                type: oppositeType,  //buy
-                symbol,// btc
-                status: 'open',
-                price: priceCondition, //price vlaue
-            },
-            orderBy,
-        });
-
-        let remaining = quantity;
-        let totalFilled = 0;
-
-        for (const matchingOrder of matchingOrders) {
-            if (remaining <= 0) break;
-
-            const availableQuantity = matchingOrder.quantity - matchingOrder.filledQuantity;
-            if (availableQuantity <= 0) continue;
-
-            const tradeQuantity = Math.min(remaining, availableQuantity);
-            const tradePrice = matchingOrder.price;
-
-            // Transfer balance
-            if (type === 'sell') {
-                await this.transferBalance(tx, userId, matchingOrder.userId, symbol, tradeQuantity);
-            } else {
-                await this.transferBalance(tx, matchingOrder.userId, userId, symbol, tradeQuantity);
-            }
-
-            // Record trade
-            await this.recordTrade(
-                tx,
-                type === 'buy' ? order.id : matchingOrder.id,
-                type === 'sell' ? order.id : matchingOrder.id,
-                tradePrice,
-                tradeQuantity,
-                type === 'buy' ? userId : matchingOrder.userId,
-                type === 'sell' ? userId : matchingOrder.userId,
-            );
-
-            // Update filled quantities
-            await tx.order.update({
-                where: { id: order.id },
-                data: { filledQuantity: { increment: tradeQuantity } },
-            });
-
-            await tx.order.update({
-                where: { id: matchingOrder.id },
-                data: { filledQuantity: { increment: tradeQuantity } },
-            });
-
-            // Close matching order if fully filled
-            if (matchingOrder.filledQuantity + tradeQuantity >= matchingOrder.quantity) {
-                await this.updateOrderStatus(tx, matchingOrder.id, 'filled');
-            }
-
-            remaining -= tradeQuantity;
-            totalFilled += tradeQuantity;
-        }
-
-        const finalStatus = totalFilled >= quantity ? 'filled' : 'open';
-        return await this.updateOrderStatus(tx, order.id, finalStatus);
-    }
-
-    async getOrderbook(symbol?: string, page: number = 1, limit: number = 50): Promise<{
+    async getOrderbook(userId: number, symbol?: string, page: number = 1, limit: number = 50): Promise<{
         buys: Order[];
         sells: Order[];
         pagination: {
@@ -296,27 +67,44 @@ export class OrderbookService {
         }
     }> {
         const skip = (page - 1) * limit;
+        console.log(userId);
+
+        // Build where conditions for buy orders
+        const buyWhere = {
+            type: 'buy',
+            status: 'open',
+            ...(symbol && { symbol }),
+            ...(userId && { userId: { not: userId } })
+        };
+
+        // Build where conditions for sell orders
+        const sellWhere = {
+            type: 'sell',
+            status: 'open',
+            ...(symbol && { symbol }),
+            ...(userId && { userId: { not: userId } })
+        };
 
         const [buys, sells, totalBuys, totalSells] = await Promise.all([
             this.prisma.order.findMany({
-                where: { type: 'buy', status: 'open', ...(symbol && { symbol }) },
+                where: buyWhere,
                 include: { user: true },
                 orderBy: { price: 'desc' },
                 skip,
                 take: limit,
             }),
             this.prisma.order.findMany({
-                where: { type: 'sell', status: 'open', ...(symbol && { symbol }) },
+                where: sellWhere,
                 include: { user: true },
                 orderBy: { price: 'asc' },
                 skip,
                 take: limit,
             }),
             this.prisma.order.count({
-                where: { type: 'buy', status: 'open', ...(symbol && { symbol }) },
+                where: buyWhere,
             }),
             this.prisma.order.count({
-                where: { type: 'sell', status: 'open', ...(symbol && { symbol }) },
+                where: sellWhere,
             }),
         ]);
 
@@ -415,6 +203,7 @@ export class OrderbookService {
             }
         };
     }
+
     async cancelOrder(userId: number, orderId: string): Promise<Order> {
         try {
             return await this.prisma.$transaction(async (tx) => {
@@ -438,12 +227,12 @@ export class OrderbookService {
                     if (order.type === 'buy') {
                         // For buy orders, refund the remaining quantity * price in the base currency
                         const refundAmount = remainingQuantity * order.price;
-                        await this.transferBalance(tx, 0, userId, order.symbol, remainingQuantity);
+                        await transferBalance(tx, 0, userId, order.symbol, remainingQuantity);
                         // Note: In a real system, you'd also refund the base currency (USD) used for the buy order
                         // This would require tracking the base currency used for each order
                     } else if (order.type === 'sell') {
                         // For sell orders, refund the remaining quantity of the asset
-                        await this.transferBalance(tx, 0, userId, order.symbol, remainingQuantity);
+                        await transferBalance(tx, 0, userId, order.symbol, remainingQuantity);
                     }
                 }
 

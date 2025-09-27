@@ -8,7 +8,6 @@ import {
     Query,
     Delete,
     Param,
-    Put,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery, ApiBody } from '@nestjs/swagger';
 import { OrderbookService } from './orderbook.service';
@@ -120,8 +119,9 @@ export class OrderbookController {
             body.market || false,
         );
     }
-
+    @UseGuards(JwtAuthGuard)
     @Get()
+    @ApiBearerAuth()
     @ApiOperation({
         summary: 'Get orderbook',
         description: 'Retrieve the current orderbook with buy and sell orders, optionally filtered by symbol'
@@ -157,13 +157,14 @@ export class OrderbookController {
         type: ErrorResponseDto
     })
     async getOrderbook(
+        @Request() req,
         @Query('symbol') symbol?: string,
         @Query('page') page?: string,
         @Query('limit') limit?: string,
     ) {
         const pageNum = page ? parseInt(page) : 1;
         const limitNum = limit ? parseInt(limit) : 50;
-        return this.orderbookService.getOrderbook(symbol, pageNum, limitNum);
+        return this.orderbookService.getOrderbook(req.user.id, symbol, pageNum, limitNum);
     }
 
     @UseGuards(JwtAuthGuard)
