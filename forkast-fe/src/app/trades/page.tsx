@@ -419,7 +419,7 @@ export default function TradesPage() {
 
                     {/* Trades Table */}
                     <DataTable
-                        title={`Trade History (${filteredTrades?.length} trades)`}
+                        title={`Trade History (${totalItems} trades)`}
                         columns={columns}
                         data={filteredTrades}
                         loading={loading}

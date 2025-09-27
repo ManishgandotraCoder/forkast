@@ -2,12 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, Search, CheckCircle, Clock, XCircle } from 'lucide-react';
+import { Search, CheckCircle, Clock, XCircle } from 'lucide-react';
 import { ordersAPI } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import DataTable from '@/components/ui/DataTable';
 import Pagination from '@/components/ui/Pagination';
-import Double from '@/components/ui/Button';
 import { BackendOrder, Order } from './interface';
 import ButtonComponent from '@/components/ui/Button';
 
@@ -23,7 +22,6 @@ export default function OrdersPage() {
     const [typeFilter, setTypeFilter] = useState('all');
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [autoRefresh, setAutoRefresh] = useState(true);
     const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
     // Pagination state
@@ -382,7 +380,7 @@ export default function OrdersPage() {
 
             {/* Orders Table */}
             <DataTable
-                title={`Your Orders (${filteredOrders.length})`}
+                title={`Your Orders (${totalItems})`}
                 columns={columns}
                 data={filteredOrders}
                 loading={loading}
