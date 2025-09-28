@@ -16,15 +16,10 @@ export class OrderbookService {
         price: number,
         quantity: number,
         market: boolean,
+        currentBalance?: number
     ): Promise<Order> {
         try {
             validateSymbol(symbol);
-
-            // Validate price matches current market price for limit orders
-            if (!market) {
-                const currentPrice = getCurrentMarketPrice(symbol);
-
-            }
 
             return await this.prisma.$transaction(async (tx) => {
                 const order = await createOrder(tx, userId, type, symbol, price, quantity, market);
@@ -34,7 +29,7 @@ export class OrderbookService {
                 );
 
                 if (market) {
-                    return await handleMarketOrder(tx, order, userId, symbol, quantity, price);
+                    return await handleMarketOrder(tx, order, userId, symbol, quantity, price, currentBalance || 0);
                 } else {
                     return await handleLimitOrder(tx, order, userId, symbol, quantity, price, type);
                 }
@@ -218,14 +213,12 @@ export class OrderbookService {
                 if (remainingQuantity > 0) {
                     // Refund the remaining balance based on order type
                     if (order.type === 'buy') {
-                        // For buy orders, refund the remaining quantity * price in the base currency
+                        // For buy orders, refund the remaining USD amount (price * remaining quantity)
                         const refundAmount = remainingQuantity * order.price;
-                        await transferBalance(tx, 0, userId, order.symbol, remainingQuantity);
-                        // Note: In a real system, you'd also refund the base currency (USD) used for the buy order
-                        // This would require tracking the base currency used for each order
+                        await transferBalance(tx, 0, userId, 'USD', refundAmount, refundAmount);
                     } else if (order.type === 'sell') {
-                        // For sell orders, refund the remaining quantity of the asset
-                        await transferBalance(tx, 0, userId, order.symbol, remainingQuantity);
+                        // For sell orders, refund the remaining crypto amount
+                        await transferBalance(tx, 0, userId, order.symbol, remainingQuantity, remainingQuantity * order.price);
                     }
                 }
 

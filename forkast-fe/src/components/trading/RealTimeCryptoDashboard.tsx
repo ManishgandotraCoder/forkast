@@ -79,7 +79,7 @@ const RealTimeCryptoDashboard: React.FC = () => {
     const [viewMode, setViewMode] = useLocalStorage<ViewMode>('rtc-viewMode', 'table');
     const [showOnlyFavorites, setShowOnlyFavorites] = useLocalStorage<boolean>('rtc-onlyFav', false);
     const [isRefreshing, setIsRefreshing] = useState(false);
-    const [openModal, setOpenModal] = useState<{ status: boolean, type: "buy" | "sell", symbol?: string, currentPrice?: number }>({
+    const [openModal, setOpenModal] = useState<{ status: boolean, type: "buy" | "sell", symbol?: string, currentPrice?: number, currentBalance?: number }>({
         status: false, type: "buy", symbol: undefined, currentPrice: undefined
     });
     // Subscribe/unsubscribe once connection is available
@@ -381,7 +381,7 @@ const RealTimeCryptoDashboard: React.FC = () => {
                                             {/* Actions */}
                                             <div className="flex items-center justify-center space-x-2">
                                                 <button
-                                                    onClick={() => setOpenModal({ status: true, type: "buy", symbol: crypto.symbol, currentPrice: crypto.price })}
+                                                    onClick={() => setOpenModal({ status: true, type: "buy", symbol: crypto.symbol, currentPrice: crypto.price, currentBalance: crypto.marketCap })}
                                                     className="flex items-center space-x-1 px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium shadow-sm hover:shadow-md"
                                                     aria-label={`Buy ${crypto.symbol}`}
                                                 >
@@ -499,8 +499,11 @@ const RealTimeCryptoDashboard: React.FC = () => {
             <OrderModal
                 symbol={openModal.symbol}
                 currentPrice={openModal.currentPrice}
-                open={openModal}
-                onClose={() => { setOpenModal({ status: false, type: "buy", symbol: undefined, currentPrice: undefined }); }}
+                open={{
+                    ...openModal,
+                    currentBalance: openModal.currentBalance ?? 0,
+                }}
+                onClose={() => { setOpenModal({ status: false, type: "buy", symbol: undefined, currentPrice: undefined, currentBalance: undefined }); }}
                 title="Order"
             />
 

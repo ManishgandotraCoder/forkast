@@ -82,18 +82,23 @@ export const transferBalance = async (
     toUserId: number,
     symbol: string,
     amount: number,
+    costPrice: number,
 ): Promise<void> => {
-    // Decrement from user
-    await tx.balance.update({
-        where: { userId_symbol: { userId: fromUserId, symbol } },
-        data: { amount: { decrement: amount } },
-    });
+    // For market maker (userId: 0), we don't need to create a balance record
+    // as it represents infinite liquidity
+    if (fromUserId !== 0) {
+        // Decrement from user
+        await tx.balance.update({
+            where: { userId_symbol: { userId: fromUserId, symbol } },
+            data: { amount: { decrement: amount }, costPrice: { decrement: costPrice } },
+        });
+    }
 
     // Increment to user
     await tx.balance.upsert({
         where: { userId_symbol: { userId: toUserId, symbol } },
-        update: { amount: { increment: amount } },
-        create: { userId: toUserId, symbol, amount },
+        update: { amount: { increment: amount }, costPrice: { increment: costPrice } },
+        create: { userId: toUserId, symbol, amount, costPrice },
     });
 }
 
@@ -121,23 +126,16 @@ export const handleMarketOrder = async (
     symbol: string,
     quantity: number,
     price: number,
+    currentBalance: number,
 ): Promise<Order> => {
     if (order.type === 'sell') {
         await checkBalance(tx, userId, symbol, quantity);
-        await transferBalance(tx, userId, 0, symbol, quantity);
+        await transferBalance(tx, userId, 0, symbol, quantity, price * quantity);
         await recordTrade(tx, null, order.id, price, quantity, 0, userId);
     } else {
-        const mmBalance = await tx.balance.findUnique({
-            where: { userId_symbol: { userId: 0, symbol } },
-        });
-
-        if (!mmBalance || mmBalance.amount < quantity) {
-            throw new BadRequestException(
-                `Insufficient market inventory for ${symbol}. Available: ${mmBalance?.amount ?? 0}, Required: ${quantity}`
-            );
-        }
-
-        await transferBalance(tx, 0, userId, symbol, quantity);
+        // For BUY orders, market maker (userId: 0) has infinite liquidity
+        // No need to check balance for market maker
+        await transferBalance(tx, 0, userId, symbol, quantity, price * quantity);
         await recordTrade(tx, order.id, null, price, quantity, userId, 0);
     }
 
@@ -191,9 +189,9 @@ export const handleLimitOrder = async (
 
         // Transfer balance
         if (type === 'sell') {
-            await transferBalance(tx, userId, matchingOrder.userId, symbol, tradeQuantity);
+            await transferBalance(tx, userId, matchingOrder.userId, symbol, tradeQuantity, tradePrice * tradeQuantity);
         } else {
-            await transferBalance(tx, matchingOrder.userId, userId, symbol, tradeQuantity);
+            await transferBalance(tx, matchingOrder.userId, userId, symbol, tradeQuantity, tradePrice * tradeQuantity);
         }
 
         // Record trade

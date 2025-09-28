@@ -627,7 +627,6 @@ export default function OrderBookPage() {
                                 </tr>
                             </thead>
                             <tbody className="bg-white divide-y divide-gray-200">
-                                {/* Asks (Sell Orders) - Red theme */}
                                 {filteredAndSortedData.filteredAsks.map((ask, index) => {
                                     const price = typeof ask.price === 'string' ? parseFloat(ask.price) : ask.price;
                                     const quantity = typeof ask.quantity === 'string' ? parseFloat(ask.quantity) : ask.quantity;
@@ -673,11 +672,11 @@ export default function OrderBookPage() {
                                             <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-right text-gray-500 hidden md:table-cell">
                                                 {user?.email !== ask.email ? (
                                                     <ButtonComponent
-                                                        className='bg-green-500 hover:bg-green-600 text-white'
-                                                        title='Buy'
+                                                        className='bg-red-500 hover:bg-red-600 text-white'
+                                                        title='Sell'
                                                         onClick={() => {
                                                             const askPrice = typeof ask.price === 'string' ? parseFloat(ask.price) : ask.price;
-                                                            handleOpenOrderModal('buy', askPrice);
+                                                            handleOpenOrderModal('sell', askPrice);
                                                         }}
                                                     />
                                                 ) : null}
@@ -732,11 +731,11 @@ export default function OrderBookPage() {
                                             <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-right text-gray-500 hidden md:table-cell">
                                                 {user?.email !== bid.email ? (
                                                     <ButtonComponent
-                                                        className='bg-red-500 hover:bg-red-600 text-white'
-                                                        title='Sell'
+                                                        className='bg-green-500 hover:bg-green-600 text-white'
+                                                        title='Buy'
                                                         onClick={() => {
                                                             const bidPrice = typeof bid.price === 'string' ? parseFloat(bid.price) : bid.price;
-                                                            handleOpenOrderModal('sell', bidPrice);
+                                                            handleOpenOrderModal('buy', bidPrice);
                                                         }}
                                                     />
                                                 ) : null}

@@ -9,7 +9,7 @@ import { useWebSocket } from '@/contexts/WebSocketContext';
 type ModalSize = 'sm' | 'md' | 'lg' | 'xl' | 'full';
 
 interface ModalProps {
-    open: { status: boolean, type: "buy" | "sell" };
+    open: { status: boolean, type: "buy" | "sell", currentBalance: number };
     onClose: () => void;
     title?: string | React.ReactNode;
     size?: ModalSize;
@@ -40,6 +40,7 @@ export default function OrderModal({
     symbol = 'BTC-USD',
     currentPrice,
 }: ModalProps) {
+
     const defaultInitialFocus = useRef<HTMLButtonElement>(null);
     const { cryptoPrices, isConnected } = useWebSocket();
 
@@ -189,6 +190,8 @@ export default function OrderModal({
         setMessage(null);
 
         try {
+            console.log("herre", open);
+
             const response = await ordersAPI.placeOrder({
                 symbol: orderData.symbol,
                 side: orderData.side,
@@ -197,6 +200,7 @@ export default function OrderModal({
                 price: orderData.price,
                 timeInForce: orderData.type === 'MARKET' ? 'IOC' : 'GTC',
                 clientOrderId: orderData.clientOrderId || undefined,
+                currentBalance: open.currentBalance,
             });
 
             console.log('Order placement response:', response.data);

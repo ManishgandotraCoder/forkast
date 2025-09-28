@@ -38,6 +38,7 @@ const Portfolio: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+    console.log(balances);
 
     // Fetch user balances
     const fetchBalances = useCallback(async () => {
@@ -149,7 +150,6 @@ const Portfolio: React.FC = () => {
     };
 
     // Filter balances to only show non-zero holdings
-    const nonZeroBalances = balances.filter(balance => balance.total > 0);
 
     return (
         <div className="bg-white rounded-lg shadow-lg p-6">
@@ -229,7 +229,7 @@ const Portfolio: React.FC = () => {
                     <div className="flex items-center justify-between">
                         <div>
                             <p className="text-orange-100 text-sm">Holdings</p>
-                            <p className="text-2xl font-bold">{nonZeroBalances.length}</p>
+                            <p className="text-2xl font-bold">{balances.length}</p>
                         </div>
                         <Wallet className="h-8 w-8 text-orange-200" />
                     </div>
@@ -242,7 +242,7 @@ const Portfolio: React.FC = () => {
                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
                     <p className="mt-4 text-gray-600">Loading portfolio...</p>
                 </div>
-            ) : nonZeroBalances.length === 0 ? (
+            ) : balances.length === 0 ? (
                 <div className="text-center py-12">
                     <Wallet className="h-16 w-16 text-gray-300 mx-auto mb-4" />
                     <h3 className="text-xl font-semibold text-gray-900 mb-2">No Crypto Holdings</h3>
@@ -268,7 +268,7 @@ const Portfolio: React.FC = () => {
 
                         {/* Table Body */}
                         <div className="space-y-2 mt-2">
-                            {nonZeroBalances.map((balance) => {
+                            {balances.map((balance) => {
                                 const symbol = `${balance.asset}-USD`;
                                 const cryptoPrice = cryptoPrices.find(p => p.symbol === symbol);
                                 const value = cryptoPrice ? balance.total * cryptoPrice.price : 0;

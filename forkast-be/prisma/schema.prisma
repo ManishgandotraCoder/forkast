@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -14,54 +8,55 @@ datasource db {
 }
 
 model User {
-  id        Int      @id @default(autoincrement())
-  email     String   @unique
+  id        Int       @id @default(autoincrement())
+  email     String    @unique
   password  String
   name      String
-  createdAt DateTime @default(now())
-  orders    Order[]
+  createdAt DateTime  @default(now())
   balances  Balance[]
+  orders    Order[]
 }
 
 model Order {
   id             Int      @id @default(autoincrement())
   userId         Int
-  user           User     @relation(fields: [userId], references: [id])
-  type           String   // 'buy' or 'sell'
-  symbol         String   // e.g., 'BTC-USD', 'ETH-USD'
+  type           String
+  symbol         String
   price          Float
   quantity       Int
   filledQuantity Int      @default(0)
-  status         String   @default("open") // open, filled, cancelled
+  status         String   @default("open")
   market         Boolean  @default(false)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+  user           User     @relation(fields: [userId], references: [id])
   trades         Trade[]  @relation("BuyOrder")
   tradesSell     Trade[]  @relation("SellOrder")
 }
 
 model Trade {
-  id         Int     @id @default(autoincrement())
-  buyOrderId Int?
-  sellOrderId Int?
-  buyOrder   Order?  @relation("BuyOrder", fields: [buyOrderId], references: [id])
-  sellOrder  Order?  @relation("SellOrder", fields: [sellOrderId], references: [id])
-  buyerUserId Int?
+  id           Int      @id @default(autoincrement())
+  buyOrderId   Int?
+  sellOrderId  Int?
+  buyerUserId  Int?
   sellerUserId Int?
-  price      Float
-  quantity   Int
-  executedAt DateTime @default(now())
+  price        Float
+  quantity     Int
+  executedAt   DateTime @default(now())
+  buyOrder     Order?   @relation("BuyOrder", fields: [buyOrderId], references: [id])
+  sellOrder    Order?   @relation("SellOrder", fields: [sellOrderId], references: [id])
 }
 
 model Balance {
-  id       Int    @id @default(autoincrement())
-  userId   Int
-  user     User   @relation(fields: [userId], references: [id])
-  symbol   String
-  amount   Float  @default(0)
-  locked   Float  @default(0)
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  symbol    String
+  amount    Float    @default(0)
+  locked    Float    @default(0)
+  costPrice Int?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id])
 
   @@unique([userId, symbol])
 }

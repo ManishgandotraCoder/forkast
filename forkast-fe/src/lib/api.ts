@@ -54,7 +54,10 @@ export const ordersAPI = {
         timeInForce: 'GTC' | 'IOC' | 'FOK' | 'DAY';
         clientOrderId?: string;
         expiresAt?: string;
+        currentBalance?: number
     }) => {
+        console.log(data);
+
         const endpoint = data.side === 'BUY' ? '/orderbook/buy' : '/orderbook/sell';
         const isMarket = data.type === 'MARKET';
         const orderData = {
@@ -62,6 +65,7 @@ export const ordersAPI = {
             price: parseFloat(data.price || '0'),
             quantity: parseInt(data.quantity),
             market: isMarket,
+            currentBalance: data.currentBalance || 0,
         };
         return api.post(endpoint, orderData);
     },

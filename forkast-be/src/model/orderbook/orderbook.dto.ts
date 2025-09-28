@@ -20,4 +20,9 @@ export class PlaceOrderDto {
   @IsBoolean()
   @IsOptional()
   market?: boolean;
+
+  @ApiProperty({ example: 1000, description: 'Current balance for the order', required: false })
+  @IsNumber({}, { message: 'currentBalance must be a number' })
+  @IsOptional()
+  currentBalance?: number;
 }

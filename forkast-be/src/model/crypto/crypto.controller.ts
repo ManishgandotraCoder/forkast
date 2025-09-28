@@ -1,9 +1,9 @@
 import { Controller, Get, Param, Query } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiQuery, ApiParam } from '@nestjs/swagger';
-import { cryptoList } from '../../constants/crypto';
 import yahooFinance from 'yahoo-finance2';
 import { CryptoQuoteResponseDto, CryptoErrorResponseDto } from '../../common/dto/crypto-response.dto';
 import { ErrorResponseDto } from '../../common/dto/response.dto';
+import { cryptoList } from 'src/constants/crypto';
 
 interface CryptoQuote {
     symbol: string;
@@ -42,7 +42,6 @@ export class CryptoController {
     async getBatchQuotes(
         @Query('symbols') symbols?: string,
     ): Promise<CryptoQuote[]> {
-        // Default symbols if not provided
         return cryptoList
     }
 
