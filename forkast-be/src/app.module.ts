@@ -2,9 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { UserController } from './model/user/user.controller';
 import { JwtModule } from '@nestjs/jwt';
-import { UserService } from './model/user/user.service';
 import { PrismaService } from './prisma.service';
 import { CryptoModule } from './model/crypto/crypto.module';
 import { WinstonModule } from 'nest-winston';
@@ -12,6 +10,8 @@ import * as winston from 'winston';
 import { OrderbookModule } from './model/orderbook/orderbook.module';
 import { BalanceModule } from './model/balance/balance.module';
 import { WebSocketModule } from './websocket/websocket.module';
+import { UsdProfileModule } from './model/user/usd-profile.module';
+import { UserModule } from './model/user/user.module';
 import configuration from './config/configuration';
 
 @Module({
@@ -63,8 +63,10 @@ import configuration from './config/configuration';
     OrderbookModule,
     BalanceModule,
     WebSocketModule,
+    UsdProfileModule,
+    UserModule,
   ],
-  controllers: [AppController, UserController],
-  providers: [AppService, UserService, PrismaService],
+  controllers: [AppController],
+  providers: [AppService, PrismaService],
 })
 export class AppModule { }

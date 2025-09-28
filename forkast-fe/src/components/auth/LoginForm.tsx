@@ -38,7 +38,7 @@ export default function LoginForm() {
                     name: formData.name,
                 });
             }
-            window.location.href = '/dashboard';
+            window.location.href = '/';
         } catch (err: unknown) {
             const error = err as { response?: { data?: { message?: string } } };
             setError(error.response?.data?.message || 'An error occurred');

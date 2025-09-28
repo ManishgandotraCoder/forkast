@@ -1,5 +1,5 @@
 // DTOs for user APIs
-import { IsEmail, IsString, MinLength, IsNotEmpty } from 'class-validator';
+import { IsEmail, IsString, MinLength, IsNotEmpty, IsOptional, IsInt, Min, Max } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class RegisterDto {
@@ -16,6 +16,13 @@ export class RegisterDto {
   @IsString()
   @IsNotEmpty()
   name: string;
+
+  @ApiProperty({ example: 25, description: 'User age', required: false, minimum: 13, maximum: 120 })
+  @IsOptional()
+  @IsInt()
+  @Min(13)
+  @Max(120)
+  age?: number;
 }
 
 export class LoginDto {
@@ -27,4 +34,19 @@ export class LoginDto {
   @IsString()
   @IsNotEmpty()
   password: string;
+}
+
+export class UpdateProfileDto {
+  @ApiProperty({ example: 'John Doe', description: 'User full name', required: false })
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  name?: string;
+
+  @ApiProperty({ example: 25, description: 'User age', required: false, minimum: 13, maximum: 120 })
+  @IsOptional()
+  @IsInt()
+  @Min(13)
+  @Max(120)
+  age?: number;
 }

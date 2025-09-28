@@ -7,7 +7,7 @@ import {
     NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma.service';
-import { RegisterDto, LoginDto } from './user.dto';
+import { RegisterDto, LoginDto, UpdateProfileDto } from './user.dto';
 import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
 
@@ -36,6 +36,7 @@ export class UserService {
                     email: data.email,
                     password: hashedPassword,
                     name: data.name,
+                    age: data.age,
                 },
             });
 
@@ -97,10 +98,39 @@ export class UserService {
                 throw new NotFoundException('User not found');
             }
             this.logger.log(`Profile retrieved for: ${user.email}`);
-            return { id: user.id, email: user.email, name: user.name };
+            return { id: user.id, email: user.email, name: user.name, age: user.age };
         } catch (error) {
             this.logger.error(
                 `Failed to get profile for userId: ${userId}`,
+                error.stack,
+            );
+            throw error;
+        }
+    }
+
+    async updateProfile(userId: number, data: UpdateProfileDto) {
+        try {
+            const user = await this.prisma.user.findUnique({
+                where: { id: userId },
+            });
+            if (!user) {
+                this.logger.warn(`User not found for userId: ${userId}`);
+                throw new NotFoundException('User not found');
+            }
+
+            const updatedUser = await this.prisma.user.update({
+                where: { id: userId },
+                data: {
+                    ...(data.name && { name: data.name }),
+                    ...(data.age !== undefined && { age: data.age }),
+                },
+            });
+
+            this.logger.log(`Profile updated for: ${updatedUser.email}`);
+            return { id: updatedUser.id, email: updatedUser.email, name: updatedUser.name, age: updatedUser.age };
+        } catch (error) {
+            this.logger.error(
+                `Failed to update profile for userId: ${userId}`,
                 error.stack,
             );
             throw error;

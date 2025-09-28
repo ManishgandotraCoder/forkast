@@ -4,10 +4,6 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useWebSocket } from '@/contexts/WebSocketContext';
 import { portfolioAPI } from '@/lib/api';
 import {
-    TrendingUp,
-    TrendingDown,
-    DollarSign,
-    Package,
     Wallet,
     RefreshCw
 } from 'lucide-react';
@@ -19,22 +15,10 @@ interface Balance {
     total: number;
 }
 
-interface PortfolioStats {
-    totalValue: number;
-    totalChange: number;
-    totalChangePercent: number;
-    assetCount: number;
-}
-
 const Portfolio: React.FC = () => {
     const { cryptoPrices } = useWebSocket();
     const [balances, setBalances] = useState<Balance[]>([]);
-    const [portfolioStats, setPortfolioStats] = useState<PortfolioStats>({
-        totalValue: 0,
-        totalChange: 0,
-        totalChangePercent: 0,
-        assetCount: 0
-    });
+
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [lastUpdated, setLastUpdated] = useState<Date | null>(null);

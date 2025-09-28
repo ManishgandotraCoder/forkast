@@ -8,13 +8,15 @@ datasource db {
 }
 
 model User {
-  id        Int       @id @default(autoincrement())
-  email     String    @unique
-  password  String
-  name      String
-  createdAt DateTime  @default(now())
-  balances  Balance[]
-  orders    Order[]
+  id           Int               @id @default(autoincrement())
+  email        String            @unique
+  password     String
+  name         String
+  age          Int?
+  createdAt    DateTime          @default(now())
+  balances     Balance[]
+  orders       Order[]
+  transactions UserTransaction[]
 }
 
 model Order {
@@ -59,4 +61,16 @@ model Balance {
   user      User     @relation(fields: [userId], references: [id])
 
   @@unique([userId, symbol])
+}
+
+model UserTransaction {
+  id             Int      @id @default(autoincrement())
+  userId         Int
+  type           String
+  currency       String
+  amountSpent    Float
+  usdtReceived   Float
+  exchangeRate   Float
+  createdAt      DateTime @default(now())
+  user           User     @relation(fields: [userId], references: [id])
 }

@@ -14,7 +14,8 @@ import {
     Plus,
     Minus,
     Menu,
-    X
+    X,
+    DollarSign
 } from 'lucide-react';
 
 export default function Navbar() {
@@ -27,11 +28,12 @@ export default function Navbar() {
     const profileRef = useRef<HTMLDivElement>(null);
 
     const navItems = [
-        { href: '/', label: 'Portfolio', icon: User },
-        { href: '/dashboard', label: 'Dashboard', icon: TrendingUp },
+        { href: '/', label: 'Dashboard', icon: TrendingUp },
+        { href: '/portfolio', label: 'Portfolio', icon: User },
         { href: '/orders', label: 'Orders', icon: ShoppingCart },
         { href: '/trades', label: 'Trades', icon: BarChart3 },
         { href: '/orderbook', label: 'Order Book', icon: Activity },
+        { href: '/buy-usdt', label: 'Buy USDT', icon: DollarSign },
     ];
 
     // Handle scroll effect
@@ -152,6 +154,16 @@ export default function Navbar() {
                             {isProfileOpen && (
                                 <div className="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white/95 backdrop-blur-md ring-1 ring-black ring-opacity-5 z-50 border border-gray-200/50">
                                     <div className="py-1">
+                                        <button
+                                            onClick={() => {
+                                                router.push('/profile');
+                                                setIsProfileOpen(false);
+                                            }}
+                                            className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-indigo-600 transition-colors duration-200"
+                                        >
+                                            <User className="h-4 w-4 mr-2" />
+                                            Profile
+                                        </button>
                                         <button
                                             onClick={handleLogout}
                                             className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-red-600 transition-colors duration-200"

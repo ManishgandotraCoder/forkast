@@ -88,5 +88,14 @@ export const cryptoList = [
         "regularMarketChange": -3.45,
         "regularMarketChangePercent": -0.59,
         "marketCap": 90000000000
+    },
+    {
+        "symbol": "USDT-USD",
+        "price": 1.00,
+        "shortName": "Tether USD",
+        "regularMarketPrice": 1.00,
+        "regularMarketChange": 0.0001,
+        "regularMarketChangePercent": 0.01,
+        "marketCap": 95000000000
     }
 ]
