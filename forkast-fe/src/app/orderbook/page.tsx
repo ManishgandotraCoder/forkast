@@ -2,19 +2,25 @@
 
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+import { useWebSocket } from '@/contexts/WebSocketContext';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { orderbookAPI } from '@/lib/api';
 import { useCryptoSymbols } from '@/lib/useCryptoSymbols';
 import {
     TrendingUp,
+    TrendingDown,
     Users,
     Search,
     ChevronUp,
     ChevronDown,
     BarChart3,
+    Activity,
+    Wifi,
+    WifiOff,
 } from 'lucide-react';
 import Pagination from '@/components/ui/Pagination';
 import ButtonComponent from '@/components/ui/Button';
+import OrderModal from '@/components/trading/OrderModal';
 
 interface OrderBookEntry {
     price: number | string;
@@ -44,6 +50,7 @@ interface Order {
 export default function OrderBookPage() {
     const router = useRouter();
     const { user } = useAuth();
+    const { cryptoPrices, isConnected, subscribeToCryptoPrices, unsubscribeFromCryptoPrices } = useWebSocket();
     const [orderBook, setOrderBook] = useState<OrderBookData | null>(null);
     const [loading, setLoading] = useState(false);
     const [symbol, setSymbol] = useState('BTC-USD');
@@ -52,7 +59,7 @@ export default function OrderBookPage() {
     // Enhanced UI state
     const [searchTerm, setSearchTerm] = useState('');
     const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
-    const [showZeroVolume, setShowZeroVolume] = useState(false);
+    const [showZeroVolume] = useState(false);
 
     // Pagination state
     const [currentPage, setCurrentPage] = useState(1);
@@ -74,6 +81,25 @@ export default function OrderBookPage() {
     const { cryptos: cryptoSymbols } = useCryptoSymbols();
     console.log(user);
 
+    // Real-time price data
+    const realTimePrice = useMemo(() => {
+        const currentCrypto = cryptoPrices.find(crypto => crypto.symbol === symbol);
+        return currentCrypto ? currentCrypto.price : null;
+    }, [cryptoPrices, symbol]);
+
+    const realTimePriceChange = useMemo(() => {
+        const currentCrypto = cryptoPrices.find(crypto => crypto.symbol === symbol);
+        return currentCrypto ? currentCrypto.regularMarketChangePercent : 0;
+    }, [cryptoPrices, symbol]);
+
+    // Subscribe to WebSocket updates
+    useEffect(() => {
+        if (isConnected) {
+            subscribeToCryptoPrices();
+            return () => unsubscribeFromCryptoPrices();
+        }
+    }, [isConnected, subscribeToCryptoPrices, unsubscribeFromCryptoPrices]);
+
     // Enhanced utility functions
     const formatPrice = useCallback((price: number | string | null | undefined) => {
         if (price === null || price === undefined) return '0.00';
@@ -87,10 +113,6 @@ export default function OrderBookPage() {
         return isNaN(numQuantity) ? '0.00000000' : numQuantity.toFixed(8);
     }, []);
 
-    const formatTimestamp = (timestamp?: string) => {
-        if (!timestamp) return '';
-        return new Date(timestamp).toLocaleTimeString();
-    };
 
     const calculateSpread = (bestBid: number, bestAsk: number) => {
         return bestAsk - bestBid;
@@ -99,6 +121,14 @@ export default function OrderBookPage() {
     const calculateSpreadPercentage = (bestBid: number, bestAsk: number) => {
         return ((bestAsk - bestBid) / bestBid) * 100;
     };
+
+    // Check if a price is close to real-time price for highlighting
+    const isPriceCloseToRealTime = useCallback((price: number | string) => {
+        if (!realTimePrice) return false;
+        const numPrice = typeof price === 'string' ? parseFloat(price) : price;
+        const tolerance = realTimePrice * 0.02; // 2% tolerance
+        return Math.abs(numPrice - realTimePrice) <= tolerance;
+    }, [realTimePrice]);
 
     const fetchOrderBook = useCallback(async (symbol: string) => {
         setLoading(true);
@@ -183,6 +213,7 @@ export default function OrderBookPage() {
         // Refresh the orderbook data after placing an order
         fetchOrderBook(symbol);
     };
+
 
     // Enhanced data processing with market depth, grouping, and cumulative volumes
     const { processedBids, processedAsks } = useMemo(() => {
@@ -380,6 +411,20 @@ export default function OrderBookPage() {
                                         {orderBook.symbol}
                                     </span>
                                 </div>
+                                <div className="flex items-center space-x-2">
+                                    {isConnected ? (
+                                        <div className="flex items-center space-x-2 px-3 py-1 bg-green-100 text-green-700 rounded-full border border-green-200">
+                                            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                                            <Wifi className="h-3 w-3" />
+                                            <span className="text-xs font-medium">Live Data</span>
+                                        </div>
+                                    ) : (
+                                        <div className="flex items-center space-x-2 px-3 py-1 bg-red-100 text-red-700 rounded-full border border-red-200">
+                                            <WifiOff className="h-3 w-3" />
+                                            <span className="text-xs font-medium">Offline</span>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -469,6 +514,61 @@ export default function OrderBookPage() {
                         </div>
                     ) : null}
 
+                    {/* Real-Time Price Display */}
+                    {realTimePrice && (
+                        <div className="px-6 py-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-gray-200">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center space-x-4">
+                                    <div className="flex items-center space-x-2">
+                                        <Activity className={`h-5 w-5 ${isConnected ? 'text-green-600' : 'text-red-500'}`} />
+                                        <span className="text-sm font-medium text-blue-900">
+                                            {isConnected ? 'Live Market Price' : 'Current Market Price'}:
+                                        </span>
+                                        <div className={`flex items-center space-x-1 ${isConnected ? 'text-green-600' : 'text-blue-900'}`}>
+                                            <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`}></div>
+                                            <span className="text-xs font-medium">
+                                                {isConnected ? 'Live' : 'Static'}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="flex items-center space-x-4">
+                                    <div className="text-center">
+                                        <div className="text-2xl font-bold text-blue-900">
+                                            ${realTimePrice.toFixed(2)}
+                                        </div>
+                                        <div className={`text-sm font-semibold ${realTimePriceChange >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                            {realTimePriceChange >= 0 ? (
+                                                <div className="flex items-center space-x-1">
+                                                    <TrendingUp className="h-4 w-4" />
+                                                    <span>+{realTimePriceChange.toFixed(2)}%</span>
+                                                </div>
+                                            ) : (
+                                                <div className="flex items-center space-x-1">
+                                                    <TrendingDown className="h-4 w-4" />
+                                                    <span>{realTimePriceChange.toFixed(2)}%</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center space-x-2">
+                                        {isConnected ? (
+                                            <div className="flex items-center space-x-2 px-3 py-1.5 bg-green-100 text-green-700 rounded-full border border-green-200">
+                                                <Wifi className="h-3 w-3" />
+                                                <span className="text-xs font-medium">Connected</span>
+                                            </div>
+                                        ) : (
+                                            <div className="flex items-center space-x-2 px-3 py-1.5 bg-red-100 text-red-700 rounded-full border border-red-200">
+                                                <WifiOff className="h-3 w-3" />
+                                                <span className="text-xs font-medium">Offline</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     {/* Order Book Table */}
                     <div className="overflow-x-auto">
                         <table className="min-w-full divide-y divide-gray-200">
@@ -548,7 +648,7 @@ export default function OrderBookPage() {
                                                 <span className="text-xs sm:text-sm">{formatQuantity(ask.quantity)}</span>
                                             </td>
                                             <td
-                                                className={`px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-right font-mono font-semibold text-green-600 cursor-pointer hover:text-green-800 hover:bg-green-100 rounded transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50`}
+                                                className={`px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-right font-mono font-semibold text-green-600 cursor-pointer hover:text-green-800 hover:bg-green-100 rounded transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50 ${isPriceCloseToRealTime(ask.price) ? 'bg-yellow-50 border-l-4 border-yellow-400' : ''}`}
                                                 tabIndex={0}
                                                 title="Click to buy at this price"
                                                 role="button"
@@ -560,7 +660,12 @@ export default function OrderBookPage() {
                                                     }
                                                 }}
                                             >
-                                                <span className="text-xs sm:text-sm">${formatPrice(ask.price)}</span>
+                                                <div className="flex items-center justify-end space-x-1">
+                                                    <span className="text-xs sm:text-sm">${formatPrice(ask.price)}</span>
+                                                    {isPriceCloseToRealTime(ask.price) && (
+                                                        <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse" title="Close to real-time price"></div>
+                                                    )}
+                                                </div>
                                             </td>
                                             <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-right font-mono text-gray-600">
                                                 <span className="text-xs sm:text-sm">${formatPrice(total)}</span>
@@ -602,7 +707,7 @@ export default function OrderBookPage() {
                                                 <span className="text-xs sm:text-sm">{formatQuantity(bid.quantity)}</span>
                                             </td>
                                             <td
-                                                className={`px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-right font-mono font-semibold text-red-600 cursor-pointer hover:text-red-800 hover:bg-red-100 rounded transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50`}
+                                                className={`px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-right font-mono font-semibold text-red-600 cursor-pointer hover:text-red-800 hover:bg-red-100 rounded transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50 ${isPriceCloseToRealTime(bid.price) ? 'bg-yellow-50 border-l-4 border-yellow-400' : ''}`}
                                                 tabIndex={0}
                                                 title="Click to sell at this price"
                                                 role="button"
@@ -614,7 +719,12 @@ export default function OrderBookPage() {
                                                     }
                                                 }}
                                             >
-                                                <span className="text-xs sm:text-sm">${formatPrice(bid.price)}</span>
+                                                <div className="flex items-center justify-end space-x-1">
+                                                    <span className="text-xs sm:text-sm">${formatPrice(bid.price)}</span>
+                                                    {isPriceCloseToRealTime(bid.price) && (
+                                                        <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse" title="Close to real-time price"></div>
+                                                    )}
+                                                </div>
                                             </td>
                                             <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-right font-mono text-gray-600">
                                                 <span className="text-xs sm:text-sm">${formatPrice(total)}</span>
@@ -688,6 +798,15 @@ export default function OrderBookPage() {
             )}
 
             {/* Order Modal */}
+            <OrderModal
+                open={{ status: orderModal.isOpen, type: orderModal.type }}
+                onClose={handleCloseOrderModal}
+                title={`${orderModal.type === 'buy' ? 'Buy' : 'Sell'} ${symbol}`}
+                size="lg"
+                symbol={symbol}
+                currentPrice={realTimePrice || orderModal.suggestedPrice}
+                onClick={handleOrderPlaced}
+            />
         </div>
     );
 }
