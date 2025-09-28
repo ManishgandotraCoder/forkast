@@ -5,7 +5,6 @@ import { useWebSocket } from '@/contexts/WebSocketContext';
 import { portfolioAPI } from '@/lib/api';
 import {
     Wallet,
-    RefreshCw
 } from 'lucide-react';
 
 interface Balance {
@@ -15,13 +14,14 @@ interface Balance {
     total: number;
 }
 
+
 const Portfolio: React.FC = () => {
     const { cryptoPrices } = useWebSocket();
     const [balances, setBalances] = useState<Balance[]>([]);
 
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+
     console.log(balances);
 
     // Fetch user balances
@@ -31,7 +31,6 @@ const Portfolio: React.FC = () => {
             setError(null);
             const response = await portfolioAPI.getBalances();
             setBalances(response.data.balances);
-            setLastUpdated(new Date());
         } catch (err: any) {
             console.error('Failed to fetch balances:', err);
             setError(err.response?.data?.message || 'Failed to fetch portfolio data');
@@ -40,61 +39,11 @@ const Portfolio: React.FC = () => {
         }
     }, []);
 
-    // Calculate portfolio statistics
-    const calculatePortfolioStats = useCallback(() => {
-        if (!balances.length || !cryptoPrices.length) {
-            setPortfolioStats({
-                totalValue: 0,
-                totalChange: 0,
-                totalChangePercent: 0,
-                assetCount: 0
-            });
-            return;
-        }
-
-        let totalValue = 0;
-        let totalChange = 0;
-        let totalChangePercent = 0;
-        let assetCount = 0;
-
-        balances.forEach(balance => {
-            if (balance.total > 0) {
-                const symbol = `${balance.asset}-USD`;
-                const cryptoPrice = cryptoPrices.find(p => p.symbol === symbol);
-
-                if (cryptoPrice) {
-                    const value = balance.total * cryptoPrice.price;
-                    totalValue += value;
-
-                    // For simplicity, we'll use the current price change percentage
-                    // In a real app, you'd want to track the original purchase price
-                    const changeValue = value * (cryptoPrice.regularMarketChangePercent / 100);
-                    totalChange += changeValue;
-
-                    assetCount++;
-                }
-            }
-        });
-
-        totalChangePercent = totalValue > 0 ? (totalChange / (totalValue - totalChange)) * 100 : 0;
-
-        setPortfolioStats({
-            totalValue,
-            totalChange,
-            totalChangePercent,
-            assetCount
-        });
-    }, [balances, cryptoPrices]);
-
     // Fetch balances on component mount
     useEffect(() => {
         fetchBalances();
     }, [fetchBalances]);
 
-    // Recalculate stats when balances or prices change
-    useEffect(() => {
-        calculatePortfolioStats();
-    }, [calculatePortfolioStats]);
 
     const formatPrice = (price: number) => {
         if (price >= 1) {
@@ -141,24 +90,9 @@ const Portfolio: React.FC = () => {
             <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center space-x-3">
                     <Wallet className="h-6 w-6 text-blue-600" />
-                    <h2 className="text-2xl font-bold text-gray-900">My Crypto Portfolio</h2>
+                    <h2 className="text-2xl font-bold text-gray-900">My Portfolio</h2>
                 </div>
 
-                <div className="flex items-center space-x-3">
-                    {lastUpdated && (
-                        <div className="text-sm text-gray-500">
-                            Last updated: {lastUpdated.toLocaleTimeString()}
-                        </div>
-                    )}
-                    <button
-                        onClick={fetchBalances}
-                        disabled={loading}
-                        className="flex items-center space-x-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
-                    >
-                        <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-                        <span>Refresh</span>
-                    </button>
-                </div>
             </div>
 
             {/* Error Message */}
@@ -167,8 +101,6 @@ const Portfolio: React.FC = () => {
                     <span className="text-red-800">{error}</span>
                 </div>
             )}
-
-
 
             {/* Holdings Table */}
             {loading ? (
@@ -230,14 +162,12 @@ const Portfolio: React.FC = () => {
                                         {/* Balance */}
                                         <div className="text-right">
                                             <div className="font-semibold text-gray-900">
-                                                {balance.total.toFixed(8)}
+                                                {balance.total.toFixed(2)}
                                             </div>
-                                            <div className="text-xs text-gray-500">
-                                                Available: {balance.available.toFixed(8)}
-                                            </div>
+
                                             {balance.locked > 0 && (
                                                 <div className="text-xs text-orange-600">
-                                                    Locked: {balance.locked.toFixed(8)}
+                                                    Locked: {balance.locked.toFixed(2)}
                                                 </div>
                                             )}
                                         </div>
@@ -283,13 +213,6 @@ const Portfolio: React.FC = () => {
                 </div>
             )}
 
-            {/* Footer */}
-            <div className="mt-6 pt-4 border-t border-gray-200">
-                <div className="text-center text-sm text-gray-500">
-                    <p>Portfolio values are updated in real-time based on current market prices.</p>
-                    <p className="mt-1">Historical performance tracking coming soon.</p>
-                </div>
-            </div>
         </div>
     );
 };
