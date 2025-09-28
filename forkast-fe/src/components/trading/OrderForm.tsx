@@ -87,11 +87,6 @@ export default function OrderForm() {
                 isValid: true,
                 message: `Price matches current market price (${currentPrice.toFixed(2)})`
             });
-        } else {
-            setPriceValidation({
-                isValid: false,
-                message: `Price must match current market price (${currentPrice.toFixed(2)}) within 1% tolerance`
-            });
         }
     };
 
@@ -115,21 +110,6 @@ export default function OrderForm() {
             setMessage({ type: 'error', text: 'Price must be greater than 0 for limit orders' });
             return false;
         }
-
-        // Validate price matches current market price
-        if (orderData.type === 'LIMIT' && orderData.price && currentPrice) {
-            const orderPrice = parseFloat(orderData.price);
-            const tolerance = 0.01; // 1% tolerance
-
-            if (Math.abs(orderPrice - currentPrice) / currentPrice > tolerance) {
-                setMessage({
-                    type: 'error',
-                    text: `Price must match current market price ($${currentPrice.toFixed(2)}) within 1% tolerance. Your price: $${orderPrice.toFixed(2)}`
-                });
-                return false;
-            }
-        }
-
         // For sell orders, check if user has enough balance
         if (orderData.side === 'SELL') {
             const requestedQuantity = parseFloat(orderData.quantity) || 0;
@@ -370,10 +350,10 @@ export default function OrderForm() {
                                     value={orderData.price}
                                     onChange={(e) => setOrderData({ ...orderData, price: e.target.value })}
                                     className={`mt-1 block w-full px-3 py-2 pr-10 border rounded-md shadow-sm focus:outline-none sm:text-sm ${priceValidation?.isValid === true
-                                            ? 'border-green-300 focus:ring-green-500 focus:border-green-500'
-                                            : priceValidation?.isValid === false
-                                                ? 'border-red-300 focus:ring-red-500 focus:border-red-500'
-                                                : 'border-gray-300 focus:ring-indigo-500 focus:border-indigo-500'
+                                        ? 'border-green-300 focus:ring-green-500 focus:border-green-500'
+                                        : priceValidation?.isValid === false
+                                            ? 'border-red-300 focus:ring-red-500 focus:border-red-500'
+                                            : 'border-gray-300 focus:ring-indigo-500 focus:border-indigo-500'
                                         }`}
                                 />
                                 {priceValidation && (

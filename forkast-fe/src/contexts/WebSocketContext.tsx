@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useState, ReactNode, useMemo, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
 
 interface CryptoPriceUpdate {
@@ -93,26 +93,26 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }
         };
     }, []);
 
-    const subscribeToCryptoPrices = () => {
+    const subscribeToCryptoPrices = useCallback(() => {
         if (socket && isConnected) {
             socket.emit('subscribe-crypto-prices', {});
         }
-    };
+    }, [socket, isConnected]);
 
-    const unsubscribeFromCryptoPrices = () => {
+    const unsubscribeFromCryptoPrices = useCallback(() => {
         if (socket && isConnected) {
             socket.emit('unsubscribe-crypto-prices', {});
         }
-    };
+    }, [socket, isConnected]);
 
-    const value: WebSocketContextType = {
+    const value: WebSocketContextType = useMemo(() => ({
         socket,
         isConnected,
         cryptoPrices,
         subscribeToCryptoPrices,
         unsubscribeFromCryptoPrices,
         error,
-    };
+    }), [socket, isConnected, cryptoPrices, subscribeToCryptoPrices, unsubscribeFromCryptoPrices, error]);
 
     return (
         <WebSocketContext.Provider value={value}>

@@ -1,19 +1,20 @@
 'use client';
 
 import { useAuth } from "@/contexts/AuthContext";
-import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import LoginForm from "@/components/auth/LoginForm";
+import Portfolio from "@/components/trading/Portfolio";
+import { WebSocketProvider } from "@/contexts/WebSocketContext";
+import { useRouter } from "next/navigation";
 
 export default function Home() {
   const { user, loading } = useAuth();
   const router = useRouter();
 
-  useEffect(() => {
-    if (user && !loading) {
-      router.push('/dashboard');
-    }
-  }, [user, loading, router]);
+  // Redirect to dashboard if user wants to trade
+  const goToDashboard = () => {
+    router.push('/dashboard');
+  };
 
   if (loading) {
     return (
@@ -26,5 +27,36 @@ export default function Home() {
     );
   }
 
-  return user ? null : <LoginForm />;
+  if (!user) {
+    return <LoginForm />;
+  }
+
+  return (
+    <WebSocketProvider>
+      <div className="min-h-screen bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {/* Header */}
+          <div className="mb-8">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900">Welcome back, {user.name}!</h1>
+                <p className="mt-2 text-gray-600">Here&apos;s your crypto portfolio overview</p>
+              </div>
+              <div className="flex space-x-4">
+                <button
+                  onClick={goToDashboard}
+                  className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                >
+                  Go to Trading
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Portfolio Component */}
+          <Portfolio />
+        </div>
+      </div>
+    </WebSocketProvider>
+  );
 }

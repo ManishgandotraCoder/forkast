@@ -15,7 +15,6 @@ import {
 } from 'lucide-react';
 import Pagination from '@/components/ui/Pagination';
 import ButtonComponent from '@/components/ui/Button';
-import OrderModal from '@/components/trading/OrderModal';
 
 interface OrderBookEntry {
     price: number | string;
@@ -689,14 +688,6 @@ export default function OrderBookPage() {
             )}
 
             {/* Order Modal */}
-            <OrderModal
-                isOpen={orderModal.isOpen}
-                onClose={handleCloseOrderModal}
-                orderType={orderModal.type}
-                symbol={symbol}
-                suggestedPrice={orderModal.suggestedPrice}
-                onOrderPlaced={handleOrderPlaced}
-            />
         </div>
     );
 }

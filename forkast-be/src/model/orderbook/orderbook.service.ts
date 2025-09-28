@@ -23,14 +23,7 @@ export class OrderbookService {
             // Validate price matches current market price for limit orders
             if (!market) {
                 const currentPrice = getCurrentMarketPrice(symbol);
-                const tolerance = 0.01; // 1% tolerance
-                const priceDifference = Math.abs(price - currentPrice) / currentPrice;
 
-                if (priceDifference > tolerance) {
-                    throw new BadRequestException(
-                        `Price must match current market price ($${currentPrice.toFixed(2)}) within 1% tolerance. Your price: $${price.toFixed(2)}`
-                    );
-                }
             }
 
             return await this.prisma.$transaction(async (tx) => {

@@ -105,7 +105,9 @@ export default function Dashboard() {
             </div>
 
             {/* Real-Time Crypto Dashboard */}
-            <RealTimeCryptoDashboard />
+            <div className="relative">
+                <RealTimeCryptoDashboard />
+            </div>
         </div>
     );
 }

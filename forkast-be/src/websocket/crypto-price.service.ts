@@ -39,10 +39,10 @@ export class CryptoPriceService implements OnModuleInit {
                 this.logger.warn('Kafka not available, continuing without Kafka:', kafkaError.message);
                 this.producer = null; // Disable Kafka functionality
             }
-            
+
             // Initialize with current prices
             await this.fetchAndUpdatePrices();
-            
+
             // Start price simulation if in development mode
             if (this.isSimulationMode) {
                 this.logger.log('Starting price simulation mode');
@@ -131,7 +131,7 @@ export class CryptoPriceService implements OnModuleInit {
     }
 
     // Fetch and update prices (called by cron job)
-    @Cron(CronExpression.EVERY_5_SECONDS)
+    @Cron(CronExpression.EVERY_SECOND)
     async fetchAndUpdatePrices() {
         try {
             const symbols = cryptoList.map(crypto => crypto.symbol);
