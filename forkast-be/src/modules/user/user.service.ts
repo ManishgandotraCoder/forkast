@@ -10,6 +10,7 @@ import { PrismaService } from '../../prisma.service';
 import { RegisterDto, LoginDto, UpdateProfileDto } from './user.dto';
 import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
+import { EncryptionService } from '../crypto/encryption.service';
 
 @Injectable()
 export class UserService {
@@ -18,6 +19,7 @@ export class UserService {
     constructor(
         private prisma: PrismaService,
         private jwtService: JwtService,
+        private encryptionService: EncryptionService,
     ) { }
 
     async register(data: RegisterDto) {
@@ -31,12 +33,23 @@ export class UserService {
             }
 
             const hashedPassword = await bcrypt.hash(data.password, 10);
+
+            // Generate RSA key pair for the user
+            const keyPair = this.encryptionService.generateRSAKeyPair();
+
+            // Encrypt sensitive data
+            const encryptedEmail = this.encryptionService.encryptWithRSA(data.email, keyPair.publicKey);
+            const encryptedName = this.encryptionService.encryptWithRSA(data.name, keyPair.publicKey);
+
             const user = await this.prisma.user.create({
                 data: {
                     email: data.email,
                     password: hashedPassword,
                     name: data.name,
                     age: data.age,
+                    encryptedEmail: encryptedEmail,
+                    encryptedName: encryptedName,
+                    publicKey: keyPair.publicKey,
                 },
             });
 
@@ -49,7 +62,12 @@ export class UserService {
                 },
             });
             this.logger.log(`User registered successfully: ${user.email}`);
-            return { id: user.id, email: user.email, name: user.name };
+            return {
+                id: user.id,
+                email: user.email,
+                name: user.name,
+                publicKey: keyPair.publicKey
+            };
         } catch (error) {
             this.logger.error(
                 `Failed to register user: ${data.email}`,

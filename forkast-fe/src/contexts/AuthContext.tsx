@@ -2,11 +2,13 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { authAPI } from '@/lib/api';
+import { EncryptionUtils } from '@/lib/encryption';
 
 export interface User {
     id: string;
     email: string;
     name: string;
+    publicKey?: string;
 }
 
 interface AuthContextType {
@@ -32,8 +34,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             const response = await authAPI.login({ email, password });
             const { access_token, user: userData } = response.data;
 
+            // Encrypt sensitive data before storing in localStorage
+            const encryptionKey = EncryptionUtils.generateAESKey();
+            const encryptedUser = EncryptionUtils.encryptForStorage(userData, encryptionKey);
+
             localStorage.setItem('authToken', access_token);
-            localStorage.setItem('user', JSON.stringify(userData));
+            localStorage.setItem('user', encryptedUser);
+            localStorage.setItem('encryptionKey', encryptionKey);
             setUser(userData);
         } catch (error) {
             console.error('Login failed:', error);
@@ -50,8 +57,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             const response = await authAPI.register(data);
             const { access_token, user: userData } = response.data;
 
+            // Encrypt sensitive data before storing in localStorage
+            const encryptionKey = EncryptionUtils.generateAESKey();
+            const encryptedUser = EncryptionUtils.encryptForStorage(userData, encryptionKey);
+
             localStorage.setItem('authToken', access_token);
-            localStorage.setItem('user', JSON.stringify(userData));
+            localStorage.setItem('user', encryptedUser);
+            localStorage.setItem('encryptionKey', encryptionKey);
             setUser(userData);
         } catch (error) {
             console.error('Registration failed:', error);
@@ -62,16 +74,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const logout = () => {
         localStorage.removeItem('authToken');
         localStorage.removeItem('user');
+        localStorage.removeItem('encryptionKey');
         setUser(null);
     };
 
     const checkAuth = async () => {
         const token = localStorage.getItem('authToken');
-        if (token) {
+        const encryptionKey = localStorage.getItem('encryptionKey');
+
+        if (token && encryptionKey) {
             try {
                 const response = await authAPI.getProfile();
+                const encryptedUser = EncryptionUtils.encryptForStorage(response.data, encryptionKey);
                 setUser(response.data);
-                localStorage.setItem('user', JSON.stringify(response.data));
+                localStorage.setItem('user', encryptedUser);
+            } catch {
+                localStorage.removeItem('authToken');
+                localStorage.removeItem('user');
+                localStorage.removeItem('encryptionKey');
+            }
+        } else if (token) {
+            // Fallback for existing users without encryption
+            try {
+                const response = await authAPI.getProfile();
+                const encryptionKey = EncryptionUtils.generateAESKey();
+                const encryptedUser = EncryptionUtils.encryptForStorage(response.data, encryptionKey);
+                setUser(response.data);
+                localStorage.setItem('user', encryptedUser);
+                localStorage.setItem('encryptionKey', encryptionKey);
             } catch {
                 localStorage.removeItem('authToken');
                 localStorage.removeItem('user');

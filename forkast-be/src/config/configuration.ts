@@ -14,4 +14,9 @@ export default () => ({
     logging: {
         level: process.env.LOG_LEVEL || 'info',
     },
+    encryption: {
+        aesKey: process.env.AES_KEY || 'default-aes-key-change-in-production-32-chars',
+        rsaKeySize: parseInt(process.env.RSA_KEY_SIZE || '2048', 10),
+        enableEncryption: process.env.ENABLE_ENCRYPTION === 'true' || true,
+    },
 });

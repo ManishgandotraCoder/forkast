@@ -7,6 +7,7 @@ import { UsdProfileController } from './usd-profile.controller';
 import { UsdProfileService } from './usd-profile.service';
 import { PrismaService } from '../../prisma.service';
 import { JwtModule } from '@nestjs/jwt';
+import { EncryptionService } from '../crypto/encryption.service';
 
 @Module({
     imports: [
@@ -16,7 +17,7 @@ import { JwtModule } from '@nestjs/jwt';
         }),
     ],
     controllers: [UserController, BuyUsdtController, UsdProfileController],
-    providers: [UserService, BuyUsdtService, UsdProfileService, PrismaService],
+    providers: [UserService, BuyUsdtService, UsdProfileService, PrismaService, EncryptionService],
     exports: [UserService, BuyUsdtService, UsdProfileService],
 })
 export class UserModule { }

@@ -13,6 +13,9 @@ model User {
   password     String
   name         String
   age          Int?
+  encryptedEmail String?         // Encrypted email for additional security
+  encryptedName  String?         // Encrypted name for additional security
+  publicKey    String?           // User's RSA public key
   createdAt    DateTime          @default(now())
   balances     Balance[]
   orders       Order[]
@@ -30,6 +33,9 @@ model Order {
   status         String   @default("open")
   market         Boolean  @default(false)
   p2p            Boolean  @default(false)
+  encryptedSymbol String? // Encrypted symbol for additional security
+  encryptedPrice  String? // Encrypted price for additional security
+  encryptedQuantity String? // Encrypted quantity for additional security
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
   user           User     @relation(fields: [userId], references: [id])
@@ -45,6 +51,8 @@ model Trade {
   sellerUserId Int?
   price        Float
   quantity     Float
+  encryptedPrice String? // Encrypted price for additional security
+  encryptedQuantity String? // Encrypted quantity for additional security
   executedAt   DateTime @default(now())
   buyOrder     Order?   @relation("BuyOrder", fields: [buyOrderId], references: [id])
   sellOrder    Order?   @relation("SellOrder", fields: [sellOrderId], references: [id])
@@ -57,6 +65,9 @@ model Balance {
   amount    Float    @default(0)
   locked    Float    @default(0)
   costPrice Int?
+  encryptedSymbol String? // Encrypted symbol for additional security
+  encryptedAmount String? // Encrypted amount for additional security
+  encryptedLocked String? // Encrypted locked amount for additional security
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   user      User     @relation(fields: [userId], references: [id])

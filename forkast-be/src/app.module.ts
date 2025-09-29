@@ -12,6 +12,7 @@ import { BalanceModule } from './modules/balance/balance.module';
 import { WebSocketModule } from './websocket/websocket.module';
 import { UsdProfileModule } from './modules/user/usd-profile.module';
 import { UserModule } from './modules/user/user.module';
+import { EncryptionModule } from './modules/crypto/encryption.module';
 import configuration from './config/configuration';
 
 @Module({
@@ -53,6 +54,7 @@ import configuration from './config/configuration';
       ],
     }),
     JwtModule.registerAsync({
+      global: true,
       useFactory: (configService) => ({
         secret: configService.get('jwt.secret'),
         signOptions: { expiresIn: configService.get('jwt.expiresIn') },
@@ -65,6 +67,7 @@ import configuration from './config/configuration';
     WebSocketModule,
     UsdProfileModule,
     UserModule,
+    EncryptionModule,
   ],
   controllers: [AppController],
   providers: [AppService, PrismaService],
