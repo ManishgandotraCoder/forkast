@@ -116,10 +116,11 @@ export const transferBalance = async (
     // For market maker (userId: 0), we don't need to create a balance record
     // as it represents infinite liquidity
     if (fromUserId !== 0) {
-        // Decrement from user
-        await tx.balance.update({
+        // Decrement from user - use upsert to handle case where balance doesn't exist
+        await tx.balance.upsert({
             where: { userId_symbol: { userId: fromUserId, symbol } },
-            data: { amount: { decrement: amount }, costPrice: { decrement: costPrice } },
+            update: { amount: { decrement: amount }, costPrice: { decrement: costPrice } },
+            create: { userId: fromUserId, symbol, amount: -amount, costPrice: -costPrice },
         });
     }
 
@@ -143,13 +144,14 @@ export const transferFromLockedBalance = async (
     // For market maker (userId: 0), we don't need to create a balance record
     // as it represents infinite liquidity
     if (fromUserId !== 0) {
-        // Transfer from locked to available for the sender
-        await tx.balance.update({
+        // Transfer from locked to available for the sender - use upsert to handle case where balance doesn't exist
+        await tx.balance.upsert({
             where: { userId_symbol: { userId: fromUserId, symbol } },
-            data: {
+            update: {
                 locked: { decrement: amount },
                 costPrice: { decrement: costPrice }
             },
+            create: { userId: fromUserId, symbol, amount: 0, locked: 0, costPrice: 0 },
         });
     }
 
@@ -223,12 +225,6 @@ export const handleP2POrder = async (
 
     // Find the matching order from the other party
     const oppositeType = type === 'buy' ? 'sell' : 'buy';
-    console.log({
-        userId: sellerId,
-        type: oppositeType,
-        symbol,
-        status: 'open'
-    });
 
     const matchingOrder = await tx.order.findFirst({
         where: {
