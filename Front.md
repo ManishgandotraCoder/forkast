@@ -194,3 +194,16 @@ npm start
 - Code splitting and lazy loading
 - Optimized bundle sizes
 - Real-time data updates
+
+## Screenshots
+
+
+<img width="1470" height="710" alt="Screenshot 2025-09-29 at 11 16 52 AM" src="https://github.com/user-attachments/assets/f66e6fe4-afcf-477d-af29-6e785f4c5749" />
+<img width="1470" height="710" alt="Screenshot 2025-09-29 at 11 16 45 AM" src="https://github.com/user-attachments/assets/19f02774-c424-4a39-8074-7cc17113cd99" />
+<img width="1470" height="710" alt="Screenshot 2025-09-29 at 11 16 41 AM" src="https://github.com/user-attachments/assets/c84de66c-a488-4d68-aa63-4c2bef6e1147" />
+<img width="1470" height="710" alt="Screenshot 2025-09-29 at 11 16 37 AM" src="https://github.com/user-attachments/assets/ebe73fd2-3168-45ca-9022-b2816fb3004b" />
+<img width="1470" height="710" alt="Screenshot 2025-09-29 at 11 16 34 AM" src="https://github.com/user-attachments/assets/67f34759-8cf2-4a7b-90bd-ad6a9464d46f" />
+<img width="1470" height="710" alt="Screenshot 2025-09-29 at 11 16 31 AM" src="https://github.com/user-attachments/assets/8435647a-69d1-47d3-97e5-b74e026b09dd" />
+<img width="1470" height="710" alt="Screenshot 2025-09-29 at 11 16 25 AM" src="https://github.com/user-attachments/assets/cd45b653-30ad-4824-bf07-53699f8db203" />
+<img width="1470" height="710" alt="Screenshot 2025-09-29 at 11 16 22 AM" src="https://github.com/user-attachments/assets/e4b3cc01-cf5a-4a51-8a0d-3fe68ab2b362" />
+<img width="1470" height="710" alt="Screenshot 2025-09-29 at 11 16 16 AM" src="https://github.com/user-attachments/assets/73049f27-bfa6-4e7d-8677-595cc33f03be" />
