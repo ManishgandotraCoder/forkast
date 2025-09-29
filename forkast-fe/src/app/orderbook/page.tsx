@@ -8,7 +8,6 @@ import { orderbookAPI } from '@/lib/api';
 import { useCryptoSymbols } from '@/lib/useCryptoSymbols';
 import {
     TrendingUp,
-    TrendingDown,
     Users,
     Search,
     ChevronUp,
@@ -42,6 +41,7 @@ interface Order {
     symbol: string;
     price: number;
     quantity: number;
+    filledQuantity: number;
     user: {
         name: string;
         email: string;
@@ -78,7 +78,33 @@ export default function OrderBookPage() {
         suggestedPrice: 0
     });
 
+    const [userUsdBalance, setUserUsdBalance] = useState<number>(0);
+
     const { cryptos: cryptoSymbols } = useCryptoSymbols();
+
+    // Fetch user USD balance
+    const fetchUserUsdBalance = useCallback(async () => {
+        try {
+            const token = localStorage.getItem('authToken');
+            if (!token) return;
+
+            const response = await fetch('http://localhost:3001/usd-profile/balances', {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (response.ok) {
+                const balances = await response.json();
+                const usdBalance = balances.find((balance: { symbol: string; amount: number }) => balance.symbol === 'USD');
+                setUserUsdBalance(usdBalance ? usdBalance.amount : 0);
+            }
+        } catch (error) {
+            console.error('Failed to fetch USD balance:', error);
+            setUserUsdBalance(0);
+        }
+    }, []);
     console.log(user);
 
     // Real-time price data
@@ -87,10 +113,6 @@ export default function OrderBookPage() {
         return currentCrypto ? currentCrypto.price : null;
     }, [cryptoPrices, symbol]);
 
-    const realTimePriceChange = useMemo(() => {
-        const currentCrypto = cryptoPrices.find(crypto => crypto.symbol === symbol);
-        return currentCrypto ? currentCrypto.regularMarketChangePercent : 0;
-    }, [cryptoPrices, symbol]);
 
     // Subscribe to WebSocket updates
     useEffect(() => {
@@ -99,6 +121,13 @@ export default function OrderBookPage() {
             return () => unsubscribeFromCryptoPrices();
         }
     }, [isConnected, subscribeToCryptoPrices, unsubscribeFromCryptoPrices]);
+
+    // Fetch USD balance when user is available
+    useEffect(() => {
+        if (user) {
+            fetchUserUsdBalance();
+        }
+    }, [user, fetchUserUsdBalance]);
 
     // Enhanced utility functions
     const formatPrice = useCallback((price: number | string | null | undefined) => {
@@ -156,14 +185,42 @@ export default function OrderBookPage() {
                 setTotalItems(Math.max(pagination.totalBuys, pagination.totalSells));
                 setTotalPages(pagination.totalPages);
 
-                const bids = buys.map(b => ({ price: b.price, quantity: b.quantity, userName: b.user.name, email: b.user.email }));
-                const asks = sells.map(s => ({ price: s.price, quantity: s.quantity, userName: s.user.name, email: s.user.email }));
+                const bids = buys
+                    .map(b => ({
+                        price: b.price,
+                        quantity: b.quantity - b.filledQuantity, // Show remaining quantity
+                        userName: b.user.name,
+                        email: b.user.email
+                    }))
+                    .filter(b => b.quantity > 0); // Only show orders with remaining quantity
+                const asks = sells
+                    .map(s => ({
+                        price: s.price,
+                        quantity: s.quantity - s.filledQuantity, // Show remaining quantity
+                        userName: s.user.name,
+                        email: s.user.email
+                    }))
+                    .filter(s => s.quantity > 0); // Only show orders with remaining quantity
                 setOrderBook({ symbol, bids, asks, timestamp: new Date().toISOString() });
             } else {
                 // Fallback to old format
                 const { buys, sells }: { buys: Order[], sells: Order[] } = response.data;
-                const bids = buys.map(b => ({ price: b.price, quantity: b.quantity, userName: b.user.name, email: b.user.email }));
-                const asks = sells.map(s => ({ price: s.price, quantity: s.quantity, userName: s.user.name, email: s.user.email }));
+                const bids = buys
+                    .map(b => ({
+                        price: b.price,
+                        quantity: b.quantity - b.filledQuantity, // Show remaining quantity
+                        userName: b.user.name,
+                        email: b.user.email
+                    }))
+                    .filter(b => b.quantity > 0); // Only show orders with remaining quantity
+                const asks = sells
+                    .map(s => ({
+                        price: s.price,
+                        quantity: s.quantity - s.filledQuantity, // Show remaining quantity
+                        userName: s.user.name,
+                        email: s.user.email
+                    }))
+                    .filter(s => s.quantity > 0); // Only show orders with remaining quantity
                 setOrderBook({ symbol, bids, asks, timestamp: new Date().toISOString() });
                 setTotalItems(buys.length + sells.length);
                 setTotalPages(1);
@@ -399,7 +456,7 @@ export default function OrderBookPage() {
             ) : orderBook ? (
                 <div className="bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden">
                     {/* Enhanced Header with Market Stats */}
-                    <div className="px-6 py-4 border-b border-gray-200 bg-gray-300 text-black">
+                    <div className="px-6 py-4 border-b border-gray-200 text-black">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center space-x-4">
                                 <div className="flex items-center space-x-2">
@@ -410,20 +467,6 @@ export default function OrderBookPage() {
                                     <span className="px-3 py-1 bg-gray-600 text-white text-sm font-medium rounded-full">
                                         {orderBook.symbol}
                                     </span>
-                                </div>
-                                <div className="flex items-center space-x-2">
-                                    {isConnected ? (
-                                        <div className="flex items-center space-x-2 px-3 py-1 bg-green-100 text-green-700 rounded-full border border-green-200">
-                                            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                                            <Wifi className="h-3 w-3" />
-                                            <span className="text-xs font-medium">Live Data</span>
-                                        </div>
-                                    ) : (
-                                        <div className="flex items-center space-x-2 px-3 py-1 bg-red-100 text-red-700 rounded-full border border-red-200">
-                                            <WifiOff className="h-3 w-3" />
-                                            <span className="text-xs font-medium">Offline</span>
-                                        </div>
-                                    )}
                                 </div>
                             </div>
                         </div>
@@ -499,10 +542,13 @@ export default function OrderBookPage() {
                                     <div className="text-sm text-gray-600">Best Bid</div>
                                 </div>
                                 <div className="text-center">
-                                    <div className="text-2xl font-bold text-gray-800">
-
+                                    <div className="text-3xl font-bold text-blue-600">
+                                        {realTimePrice ? formatPrice(realTimePrice) : 'N/A'}
                                     </div>
-                                    <div className="text-sm text-gray-600"></div>
+                                    <div className="text-sm text-gray-600 flex items-center justify-center space-x-1">
+                                        <Activity className={`h-3 w-3 ${isConnected ? 'text-green-600' : 'text-red-500'}`} />
+                                        <span>Live Market Price</span>
+                                    </div>
                                 </div>
                                 <div className="text-center">
                                     <div className="text-2xl font-bold text-red-600">
@@ -514,60 +560,6 @@ export default function OrderBookPage() {
                         </div>
                     ) : null}
 
-                    {/* Real-Time Price Display */}
-                    {realTimePrice && (
-                        <div className="px-6 py-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-gray-200">
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center space-x-4">
-                                    <div className="flex items-center space-x-2">
-                                        <Activity className={`h-5 w-5 ${isConnected ? 'text-green-600' : 'text-red-500'}`} />
-                                        <span className="text-sm font-medium text-blue-900">
-                                            {isConnected ? 'Live Market Price' : 'Current Market Price'}:
-                                        </span>
-                                        <div className={`flex items-center space-x-1 ${isConnected ? 'text-green-600' : 'text-blue-900'}`}>
-                                            <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`}></div>
-                                            <span className="text-xs font-medium">
-                                                {isConnected ? 'Live' : 'Static'}
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="flex items-center space-x-4">
-                                    <div className="text-center">
-                                        <div className="text-2xl font-bold text-blue-900">
-                                            ${realTimePrice.toFixed(2)}
-                                        </div>
-                                        <div className={`text-sm font-semibold ${realTimePriceChange >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                            {realTimePriceChange >= 0 ? (
-                                                <div className="flex items-center space-x-1">
-                                                    <TrendingUp className="h-4 w-4" />
-                                                    <span>+{realTimePriceChange.toFixed(2)}%</span>
-                                                </div>
-                                            ) : (
-                                                <div className="flex items-center space-x-1">
-                                                    <TrendingDown className="h-4 w-4" />
-                                                    <span>{realTimePriceChange.toFixed(2)}%</span>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center space-x-2">
-                                        {isConnected ? (
-                                            <div className="flex items-center space-x-2 px-3 py-1.5 bg-green-100 text-green-700 rounded-full border border-green-200">
-                                                <Wifi className="h-3 w-3" />
-                                                <span className="text-xs font-medium">Connected</span>
-                                            </div>
-                                        ) : (
-                                            <div className="flex items-center space-x-2 px-3 py-1.5 bg-red-100 text-red-700 rounded-full border border-red-200">
-                                                <WifiOff className="h-3 w-3" />
-                                                <span className="text-xs font-medium">Offline</span>
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    )}
 
                     {/* Order Book Table */}
                     <div className="overflow-x-auto">
@@ -798,13 +790,15 @@ export default function OrderBookPage() {
 
             {/* Order Modal */}
             <OrderModal
-                open={{ status: orderModal.isOpen, type: orderModal.type }}
+                open={{ status: orderModal.isOpen, type: orderModal.type, currentBalance: userUsdBalance }}
                 onClose={handleCloseOrderModal}
                 title={`${orderModal.type === 'buy' ? 'Buy' : 'Sell'} ${symbol}`}
                 size="lg"
                 symbol={symbol}
                 currentPrice={realTimePrice || orderModal.suggestedPrice}
                 onClick={handleOrderPlaced}
+                p2p={true}
+            // quantity={quan}
             />
         </div>
     );

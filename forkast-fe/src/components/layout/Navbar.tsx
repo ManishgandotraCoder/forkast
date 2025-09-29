@@ -15,7 +15,8 @@ import {
     Minus,
     Menu,
     X,
-    DollarSign
+    DollarSign,
+    Wallet
 } from 'lucide-react';
 
 export default function Navbar() {
@@ -25,15 +26,43 @@ export default function Navbar() {
     const [isProfileOpen, setIsProfileOpen] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isScrolled, setIsScrolled] = useState(false);
+    const [userUsdBalance, setUserUsdBalance] = useState<number>(0);
     const profileRef = useRef<HTMLDivElement>(null);
+
+    // Fetch user USD balance
+    const fetchUserUsdBalance = async () => {
+        try {
+            const token = localStorage.getItem('authToken');
+            if (!token) return;
+
+            const response = await fetch('http://localhost:3001/usd-profile/balances', {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (response.ok) {
+                const balances = await response.json();
+                const usdBalance = balances.find((balance: { symbol: string; amount: number }) => balance.symbol === 'USD');
+                setUserUsdBalance(usdBalance ? usdBalance.amount : 0);
+            }
+        } catch (error) {
+            console.error('Failed to fetch USD balance:', error);
+            setUserUsdBalance(0);
+        }
+    };
 
     const navItems = [
         { href: '/', label: 'Dashboard', icon: TrendingUp },
-        { href: '/portfolio', label: 'Portfolio', icon: User },
         { href: '/orders', label: 'Orders', icon: ShoppingCart },
         { href: '/trades', label: 'Trades', icon: BarChart3 },
         { href: '/orderbook', label: 'Order Book', icon: Activity },
-        { href: '/buy-usdt', label: 'Buy USDT', icon: DollarSign },
+        {
+            href: '/buy-usdt',
+            label: `Buy USDT - $${userUsdBalance.toFixed(2)} Available`,
+            icon: DollarSign
+        },
     ];
 
     // Handle scroll effect
@@ -46,6 +75,16 @@ export default function Navbar() {
         window.addEventListener('scroll', handleScroll);
         return () => window.removeEventListener('scroll', handleScroll);
     }, []);
+
+    // Fetch USD balance when user is available
+    useEffect(() => {
+        if (user) {
+            fetchUserUsdBalance();
+            // Refresh balance every 30 seconds
+            const interval = setInterval(fetchUserUsdBalance, 30000);
+            return () => clearInterval(interval);
+        }
+    }, [user]);
 
     // Close dropdowns when clicking outside
     useEffect(() => {
@@ -163,6 +202,16 @@ export default function Navbar() {
                                         >
                                             <User className="h-4 w-4 mr-2" />
                                             Profile
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                router.push('/portfolio');
+                                                setIsProfileOpen(false);
+                                            }}
+                                            className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-indigo-600 transition-colors duration-200"
+                                        >
+                                            <Wallet className="h-4 w-4 mr-2" />
+                                            Portfolio
                                         </button>
                                         <button
                                             onClick={handleLogout}

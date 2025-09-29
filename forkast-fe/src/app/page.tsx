@@ -2,7 +2,6 @@
 
 import { useAuth } from "@/contexts/AuthContext";
 import LoginForm from "@/components/auth/LoginForm";
-import Portfolio from "@/components/trading/Portfolio";
 import Dashboard from "./dashboard/page";
 
 export default function Home() {

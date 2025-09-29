@@ -1,6 +1,6 @@
 'use client';
 
-import { Fragment, useRef, useState, useEffect } from 'react';
+import { Fragment, useRef, useState, useEffect, useCallback } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { X, TrendingUp, TrendingDown, Activity } from 'lucide-react';
 import { ordersAPI, portfolioAPI } from '@/lib/api';
@@ -19,6 +19,7 @@ interface ModalProps {
     onClick?: () => void;
     symbol?: string;
     currentPrice?: number;
+    p2p?: boolean;
 }
 
 const sizeClasses: Record<ModalSize, string> = {
@@ -39,6 +40,7 @@ export default function OrderModal({
     footer,
     symbol = 'BTC-USD',
     currentPrice,
+    p2p = false,
 }: ModalProps) {
 
     const defaultInitialFocus = useRef<HTMLButtonElement>(null);
@@ -119,7 +121,12 @@ export default function OrderModal({
             setLoadingBalances(true);
             try {
                 const response = await portfolioAPI.getBalances();
-                setBalances(response.data.balances);
+                setBalances(response.data.balances.map((balance: { symbol: string; amount: number; locked: number }) => ({
+                    asset: balance.symbol,
+                    available: balance.amount,
+                    locked: balance.locked,
+                    total: balance.amount + balance.locked
+                })));
             } catch (error) {
                 console.error('Failed to fetch balances:', error);
                 setBalances([]);
@@ -151,6 +158,23 @@ export default function OrderModal({
             price: type === 'MARKET' && marketPrice ? marketPrice.toFixed(2) : prev.price
         }));
     };
+
+    // Memoized handlers to prevent re-renders
+    const handleQuantityChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+        setOrderData(prev => ({ ...prev, quantity: e.target.value }));
+    }, []);
+
+    const handlePriceChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+        setOrderData(prev => ({ ...prev, price: e.target.value }));
+    }, []);
+
+    // Memoized percentage handlers
+    const handlePercentageClick = useCallback((percentage: number) => {
+        setOrderData(prev => ({
+            ...prev,
+            quantity: (availableBalance * percentage).toFixed(8)
+        }));
+    }, [availableBalance]);
 
     const validateForm = () => {
         if (!orderData.quantity || parseFloat(orderData.quantity) <= 0) {
@@ -201,6 +225,7 @@ export default function OrderModal({
                 timeInForce: orderData.type === 'MARKET' ? 'IOC' : 'GTC',
                 clientOrderId: orderData.clientOrderId || undefined,
                 currentBalance: open.currentBalance,
+                p2p: p2p,
             });
 
             console.log('Order placement response:', response.data);
@@ -411,6 +436,8 @@ export default function OrderModal({
                                             )}
                                         </div>
 
+                                        {/* P2P Toggle */}
+
                                         {/* Quantity and Price */}
                                         <div className="grid grid-cols-2 gap-4">
                                             <div>
@@ -430,35 +457,35 @@ export default function OrderModal({
                                                     min="0"
                                                     placeholder="0.00000000"
                                                     value={orderData.quantity}
-                                                    onChange={(e) => setOrderData({ ...orderData, quantity: e.target.value })}
+                                                    onChange={handleQuantityChange}
                                                     className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                                                 />
                                                 {orderData.side === 'SELL' && !loadingBalances && (
                                                     <div className="mt-2 flex justify-between text-xs text-gray-500">
                                                         <button
                                                             type="button"
-                                                            onClick={() => setOrderData({ ...orderData, quantity: (availableBalance * 0.25).toFixed(8) })}
+                                                            onClick={() => handlePercentageClick(0.25)}
                                                             className="hover:text-indigo-600"
                                                         >
                                                             25%
                                                         </button>
                                                         <button
                                                             type="button"
-                                                            onClick={() => setOrderData({ ...orderData, quantity: (availableBalance * 0.5).toFixed(8) })}
+                                                            onClick={() => handlePercentageClick(0.5)}
                                                             className="hover:text-indigo-600"
                                                         >
                                                             50%
                                                         </button>
                                                         <button
                                                             type="button"
-                                                            onClick={() => setOrderData({ ...orderData, quantity: (availableBalance * 0.75).toFixed(8) })}
+                                                            onClick={() => handlePercentageClick(0.75)}
                                                             className="hover:text-indigo-600"
                                                         >
                                                             75%
                                                         </button>
                                                         <button
                                                             type="button"
-                                                            onClick={() => setOrderData({ ...orderData, quantity: availableBalance.toFixed(8) })}
+                                                            onClick={() => handlePercentageClick(1)}
                                                             className="hover:text-indigo-600"
                                                         >
                                                             Max
@@ -485,7 +512,7 @@ export default function OrderModal({
                                                         min="0"
                                                         placeholder="0.00"
                                                         value={orderData.price}
-                                                        onChange={orderData.type === 'LIMIT' ? (e) => setOrderData({ ...orderData, price: e.target.value }) : undefined}
+                                                        onChange={orderData.type === 'LIMIT' ? handlePriceChange : undefined}
                                                         readOnly={orderData.type === 'MARKET'}
                                                         className={`mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm ${orderData.type === 'MARKET' ? 'bg-gray-50 text-gray-600 cursor-not-allowed' : ''}`}
                                                     />

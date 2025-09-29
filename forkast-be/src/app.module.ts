@@ -4,14 +4,14 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { JwtModule } from '@nestjs/jwt';
 import { PrismaService } from './prisma.service';
-import { CryptoModule } from './model/crypto/crypto.module';
+import { CryptoModule } from './modules/crypto/crypto.module';
 import { WinstonModule } from 'nest-winston';
 import * as winston from 'winston';
-import { OrderbookModule } from './model/orderbook/orderbook.module';
-import { BalanceModule } from './model/balance/balance.module';
+import { OrderbookModule } from './modules/orderbook/orderbook.module';
+import { BalanceModule } from './modules/balance/balance.module';
 import { WebSocketModule } from './websocket/websocket.module';
-import { UsdProfileModule } from './model/user/usd-profile.module';
-import { UserModule } from './model/user/user.module';
+import { UsdProfileModule } from './modules/user/usd-profile.module';
+import { UserModule } from './modules/user/user.module';
 import configuration from './config/configuration';
 
 @Module({

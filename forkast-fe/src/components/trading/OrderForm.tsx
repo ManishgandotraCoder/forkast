@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { ordersAPI, portfolioAPI } from '@/lib/api';
 import { TrendingUp, TrendingDown, AlertCircle, CheckCircle } from 'lucide-react';
 
@@ -27,7 +27,12 @@ export default function OrderForm() {
             setLoadingBalances(true);
             try {
                 const response = await portfolioAPI.getBalances();
-                setBalances(response.data.balances);
+                setBalances(response.data.balances.map((balance: { symbol: string; amount: number; locked: number }) => ({
+                    asset: balance.symbol,
+                    available: balance.amount,
+                    locked: balance.locked,
+                    total: balance.amount + balance.locked
+                })));
             } catch (error) {
                 console.error('Failed to fetch balances:', error);
                 setBalances([]);
@@ -71,6 +76,22 @@ export default function OrderForm() {
     };
 
     const availableBalance = getAvailableBalance();
+
+    // Memoized handlers to prevent re-renders
+    const handleQuantityChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+        setOrderData(prev => ({ ...prev, quantity: e.target.value }));
+    }, []);
+
+    const handlePriceChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+        setOrderData(prev => ({ ...prev, price: e.target.value }));
+    }, []);
+
+    const handlePercentageClick = useCallback((percentage: number) => {
+        setOrderData(prev => ({
+            ...prev,
+            quantity: (availableBalance * percentage).toFixed(8)
+        }));
+    }, [availableBalance]);
 
     // Validate price against current market price
     const validatePrice = (price: string) => {
@@ -292,35 +313,35 @@ export default function OrderForm() {
                             min="0"
                             placeholder="0.00000000"
                             value={orderData.quantity}
-                            onChange={(e) => setOrderData({ ...orderData, quantity: e.target.value })}
+                            onChange={handleQuantityChange}
                             className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                         />
                         {orderData.side === 'SELL' && !loadingBalances && (
                             <div className="mt-2 flex justify-between text-xs text-gray-500">
                                 <button
                                     type="button"
-                                    onClick={() => setOrderData({ ...orderData, quantity: (availableBalance * 0.25).toFixed(8) })}
+                                    onClick={() => handlePercentageClick(0.25)}
                                     className="hover:text-indigo-600"
                                 >
                                     25%
                                 </button>
                                 <button
                                     type="button"
-                                    onClick={() => setOrderData({ ...orderData, quantity: (availableBalance * 0.5).toFixed(8) })}
+                                    onClick={() => handlePercentageClick(0.5)}
                                     className="hover:text-indigo-600"
                                 >
                                     50%
                                 </button>
                                 <button
                                     type="button"
-                                    onClick={() => setOrderData({ ...orderData, quantity: (availableBalance * 0.75).toFixed(8) })}
+                                    onClick={() => handlePercentageClick(0.75)}
                                     className="hover:text-indigo-600"
                                 >
                                     75%
                                 </button>
                                 <button
                                     type="button"
-                                    onClick={() => setOrderData({ ...orderData, quantity: availableBalance.toFixed(8) })}
+                                    onClick={() => handlePercentageClick(1)}
                                     className="hover:text-indigo-600"
                                 >
                                     Max
@@ -348,7 +369,7 @@ export default function OrderForm() {
                                     min="0"
                                     placeholder="0.00"
                                     value={orderData.price}
-                                    onChange={(e) => setOrderData({ ...orderData, price: e.target.value })}
+                                    onChange={handlePriceChange}
                                     className={`mt-1 block w-full px-3 py-2 pr-10 border rounded-md shadow-sm focus:outline-none sm:text-sm ${priceValidation?.isValid === true
                                         ? 'border-green-300 focus:ring-green-500 focus:border-green-500'
                                         : priceValidation?.isValid === false

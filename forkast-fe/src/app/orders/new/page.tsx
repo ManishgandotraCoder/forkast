@@ -50,7 +50,12 @@ export default function NewOrderPage() {
                 const response = await portfolioAPI.getBalances();
                 console.log(response.data.balances);
 
-                setBalances(response.data.balances);
+                setBalances(response.data.balances.map((balance: { symbol: string; amount: number; locked: number }) => ({
+                    asset: balance.symbol,
+                    available: balance.amount,
+                    locked: balance.locked,
+                    total: balance.amount + balance.locked
+                })));
             } catch (error) {
                 console.error('Failed to fetch balances:', error);
                 setBalances([]);

@@ -38,7 +38,6 @@ export default function BuyUsdtPage() {
     const { cryptoPrices, isConnected, subscribeToCryptoPrices, unsubscribeFromCryptoPrices } = useWebSocket();
 
     const [exchangeRates, setExchangeRates] = useState<ExchangeRates | null>(null);
-    const [userBalances, setUserBalances] = useState<UserBalance[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string>('');
     const [success, setSuccess] = useState<string>('');
@@ -58,20 +57,6 @@ export default function BuyUsdtPage() {
         }
     }, []);
 
-    const fetchUserBalances = useCallback(async () => {
-        try {
-            const token = localStorage.getItem('authToken');
-            const res = await fetch('http://localhost:3001/usd-profile/balances', {
-                headers: token ? { Authorization: `Bearer ${token}` } : {},
-            });
-            if (!res.ok) throw new Error('Failed to load balances');
-            const balances = (await res.json()) as UserBalance[];
-            setUserBalances(balances);
-        } catch (error: unknown) {
-            console.error('Error fetching balances:', error);
-            setError(error instanceof Error ? error.message : 'Unable to fetch balances');
-        }
-    }, []);
 
     // --- Effects ---
     useEffect(() => {
@@ -79,7 +64,7 @@ export default function BuyUsdtPage() {
 
         const boot = async () => {
             try {
-                await Promise.all([fetchExchangeRates(), fetchUserBalances()]);
+                await Promise.all([fetchExchangeRates()]);
             } catch {
                 // Errors are handled inside each function
             } finally {
@@ -98,7 +83,7 @@ export default function BuyUsdtPage() {
             mounted = false;
             unsubscribeFromCryptoPrices();
         };
-    }, [isConnected, subscribeToCryptoPrices, unsubscribeFromCryptoPrices, fetchExchangeRates, fetchUserBalances]);
+    }, [isConnected, subscribeToCryptoPrices, unsubscribeFromCryptoPrices, fetchExchangeRates]);
 
     // --- Derived values ---
     const usdtTicker: Ticker | null = useMemo(() => {
@@ -147,13 +132,12 @@ export default function BuyUsdtPage() {
             setSuccess(`Successfully added ${formatCurrency(result.amountAdded)} to your account`);
             setAddUsdAmount('');
             usdInputRef.current?.reset();
-            await fetchUserBalances();
         } catch (error: unknown) {
             setError(error instanceof Error ? error.message : 'An error occurred while adding USD');
         } finally {
             setAddingUsd(false);
         }
-    }, [addUsdAmount, fetchUserBalances]);
+    }, [addUsdAmount]);
 
     // --- Small UI Components ---
     const LiveBadge = ({ live }: { live: boolean }) => (
@@ -288,7 +272,7 @@ export default function BuyUsdtPage() {
 
                 {/* Content */}
                 <div className="p-6">
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div className="grid grid-cols-1 lg:grid-cols-1 gap-8">
                         {/* Left: Add USD */}
                         <div className="space-y-5">
                             <h2 className="text-lg font-semibold text-gray-900">Add USD</h2>
@@ -325,95 +309,53 @@ export default function BuyUsdtPage() {
                             {error && <Notice kind="error" message={error} onClose={() => setError('')} />}
                             {success && <Notice kind="success" message={success} onClose={() => setSuccess('')} />}
 
-                            <Panel title="USD Amount to Add">
-                                <div className="space-y-3">
-                                    <IsolatedUsdInput
-                                        ref={usdInputRef}
-                                        initialValue={addUsdAmount}
-                                        onValueChange={handleUsdAmountChange}
-                                        disabled={addingUsd}
-                                    />
+                            {/* <Panel title="USD Amount to Add"> */}
+                            <div className="space-y-3">
+                                <IsolatedUsdInput
+                                    ref={usdInputRef}
+                                    initialValue={addUsdAmount}
+                                    onValueChange={handleUsdAmountChange}
+                                    disabled={addingUsd}
+                                />
 
-                                    {exchangeRates && (
-                                        <div className="text-xs text-gray-600">
-                                            <p>
-                                                1 USD ≈ <span className="font-medium">{(1 / exchangeRates.USD_TO_USDT).toFixed(6)} USDT</span>
-                                            </p>
-                                            <p>
-                                                1 INR ≈ <span className="font-medium">{(1 / exchangeRates.INR_TO_USDT).toFixed(6)} USDT</span>
-                                            </p>
-                                        </div>
-                                    )}
-
-                                    <button
-                                        onClick={handleAddUsd}
-                                        disabled={addUsdDisabled}
-                                        className={classNames(
-                                            'w-full py-3 px-4 rounded-lg font-semibold transition-colors duration-200',
-                                            addUsdDisabled
-                                                ? 'bg-blue-600/60 text-white/80 cursor-not-allowed'
-                                                : 'bg-blue-600 text-white hover:bg-blue-700'
-                                        )}
-                                    >
-                                        {addingUsd ? 'Adding USD…' : 'Add USD to Account'}
-                                    </button>
-
-                                    {/* Estimated outcome helper */}
-                                    {usdtTicker && addUsdAmount && Number(addUsdAmount) > 0 && (
-                                        <p className="text-xs text-gray-500">
-                                            Est. you can buy about{' '}
-                                            <span className="font-medium">
-                                                {formatNumber(Number(addUsdAmount) / usdtTicker.price, 6)} USDT
-                                            </span>{' '}
-                                            at current price.
+                                {exchangeRates && (
+                                    <div className="text-xs text-gray-600">
+                                        <p>
+                                            1 USD ≈ <span className="font-medium">{(1 / exchangeRates.USD_TO_USDT).toFixed(6)} USDT</span>
                                         </p>
-                                    )}
-                                </div>
-                            </Panel>
-                        </div>
-
-                        {/* Right: Balances & Rates */}
-                        <div className="space-y-5">
-                            <h2 className="text-lg font-semibold text-gray-900">Your Balances</h2>
-
-                            <Panel>
-                                <div className="space-y-3">
-                                    {userBalances.length === 0 && (
-                                        <div className="text-sm text-gray-600">No balances found yet.</div>
-                                    )}
-
-                                    {userBalances.map((b) => (
-                                        <div key={b.symbol} className="flex items-center justify-between rounded-lg bg-gray-50 p-4">
-                                            <div>
-                                                <div className="text-base font-semibold text-gray-900">{b.symbol}</div>
-                                                <div className="text-xs text-gray-600">Available</div>
-                                            </div>
-                                            <div className="text-right">
-                                                <div className="text-lg font-bold text-gray-900">{formatNumber(b.amount, 4)}</div>
-                                                {b.locked > 0 && (
-                                                    <div className="text-xs text-gray-600">Locked: {formatNumber(b.locked, 4)}</div>
-                                                )}
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </Panel>
-
-                            {exchangeRates && (
-                                <Panel title="Current Exchange Rates" className="bg-blue-50/60 border-blue-200">
-                                    <div className="space-y-2 text-sm">
-                                        <div className="flex justify-between">
-                                            <span className="text-gray-600">USD ⇄ USDT</span>
-                                            <span className="font-medium text-gray-900">1 USD = {(1 / exchangeRates.USD_TO_USDT).toFixed(6)} USDT</span>
-                                        </div>
-                                        <div className="flex justify-between">
-                                            <span className="text-gray-600">INR ⇄ USDT</span>
-                                            <span className="font-medium text-gray-900">1 INR = {(1 / exchangeRates.INR_TO_USDT).toFixed(6)} USDT</span>
-                                        </div>
+                                        <p>
+                                            1 INR ≈ <span className="font-medium">{(1 / exchangeRates.INR_TO_USDT).toFixed(6)} USDT</span>
+                                        </p>
                                     </div>
-                                </Panel>
-                            )}
+                                )}
+
+                                <button
+                                    onClick={handleAddUsd}
+                                    disabled={addUsdDisabled}
+                                    className={classNames(
+                                        'w-full py-3 px-4 rounded-lg font-semibold transition-colors duration-200',
+                                        addUsdDisabled
+                                            ? 'bg-blue-600/60 text-white/80 cursor-not-allowed'
+                                            : 'bg-blue-600 text-white hover:bg-blue-700'
+                                    )}
+                                >
+                                    {addingUsd ? 'Adding USD…' : 'Add USD to Account'}
+                                </button>
+
+                                {/* Estimated outcome helper */}
+                                {usdtTicker && addUsdAmount && Number(addUsdAmount) > 0 && (
+                                    <p className="text-xs text-gray-500">
+                                        Est. you can buy about{' '}
+                                        <span className="font-medium">
+                                            {formatNumber(Number(addUsdAmount) / usdtTicker.price, 6)} USDT
+                                        </span>{' '}
+                                        at current price.
+                                    </p>
+                                )}
+                            </div>
+                            {/* </Panel> */}
                         </div>
+
                     </div>
                 </div>
             </div>

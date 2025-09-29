@@ -21,11 +21,6 @@ export class PlaceOrderDto {
   @IsOptional()
   market?: boolean;
 
-  @ApiProperty({ example: false, description: 'Whether this is a P2P order', required: false })
-  @IsBoolean()
-  @IsOptional()
-  p2p?: boolean;
-
   @ApiProperty({ example: 1000, description: 'Current balance for the order', required: false })
   @IsNumber({}, { message: 'currentBalance must be a number' })
   @IsOptional()

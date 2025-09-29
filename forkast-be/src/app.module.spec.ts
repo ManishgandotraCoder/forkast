@@ -2,8 +2,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { AppModule } from './app.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { UserController } from './model/user/user.controller';
-import { UserService } from './model/user/user.service';
+import { UserController } from './modules/user/user.controller';
+import { UserService } from './modules/user/user.service';
 import { PrismaService } from './prisma.service';
 import { JwtService } from '@nestjs/jwt';
 

@@ -1,7 +1,7 @@
 import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { Order, Trade } from '@prisma/client';
 import { PrismaService } from '../../prisma.service';
-import { createOrder, getCurrentMarketPrice, handleLimitOrder, handleMarketOrder, handleP2POrder, transferBalance, validateSymbol } from './orderbook.utils';
+import { createOrder, getCurrentMarketPrice, handleLimitOrder, handleMarketOrder, transferBalance, validateSymbol } from './orderbook.utils';
 
 @Injectable()
 export class OrderbookService {
@@ -16,30 +16,27 @@ export class OrderbookService {
         price: number,
         quantity: number,
         market: boolean,
-        currentBalance?: number,
-        p2p: boolean = false
+        currentBalance: number
     ): Promise<Order> {
         try {
             validateSymbol(symbol);
 
             return await this.prisma.$transaction(async (tx) => {
-                const order = await createOrder(tx, userId, type, symbol, price, quantity, market, p2p);
+                const order = await createOrder(tx, userId, type, symbol, price, quantity, market);
 
                 this.logger.log(
-                    `${type.toUpperCase()} order placed: id=${order.id} userId=${userId} ${symbol} price=${price} qty=${quantity} market=${market} p2p=${p2p}`
+                    `${type.toUpperCase()} order placed: id=${order.id} userId=${userId} ${symbol} price=${price} qty=${quantity} market=${market}`
                 );
 
-                if (p2p) {
-                    return await handleP2POrder(tx, order, userId, symbol, quantity, price, type);
-                } else if (market) {
-                    return await handleMarketOrder(tx, order, userId, symbol, quantity, price, currentBalance || 0);
+                if (market) {
+                    return await handleMarketOrder(tx, order, userId, symbol, quantity, price, currentBalance);
                 } else {
                     return await handleLimitOrder(tx, order, userId, symbol, quantity, price, type);
                 }
             });
         } catch (error) {
             this.logger.error(
-                `Failed to place ${type.toUpperCase()}: userId=${userId} symbol=${symbol} price=${price} qty=${quantity} market=${market} p2p=${p2p}`,
+                `Failed to place ${type.toUpperCase()}: userId=${userId} symbol=${symbol} price=${price} qty=${quantity} market=${market}`,
                 error instanceof Error ? error.stack : String(error)
             );
             throw error;
@@ -214,26 +211,13 @@ export class OrderbookService {
                 const remainingQuantity = order.quantity - order.filledQuantity;
 
                 if (remainingQuantity > 0) {
-                    // Refund the remaining locked balance based on order type
+                    // Refund the remaining balance based on order type
                     if (order.type === 'buy') {
-                        // For buy orders, refund the remaining USD amount from locked to available
-                        const refundAmount = remainingQuantity * order.price;
-                        await tx.balance.update({
-                            where: { userId_symbol: { userId, symbol: 'USD' } },
-                            data: {
-                                locked: { decrement: refundAmount },
-                                amount: { increment: refundAmount }
-                            },
-                        });
+                        // For buy orders, refund the remaining quantity * price in the base currency
+                        const amount = remainingQuantity * order.price;
+                        await transferBalance(tx, 0, userId, order.symbol, remainingQuantity, order.quantity * order.price);
                     } else if (order.type === 'sell') {
-                        // For sell orders, refund the remaining crypto amount from locked to available
-                        await tx.balance.update({
-                            where: { userId_symbol: { userId, symbol: order.symbol } },
-                            data: {
-                                locked: { decrement: remainingQuantity },
-                                amount: { increment: remainingQuantity }
-                            },
-                        });
+                        await transferBalance(tx, 0, userId, order.symbol, remainingQuantity, order.quantity * order.price);
                     }
                 }
 

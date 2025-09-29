@@ -13,7 +13,7 @@ export class TradeResponseDto {
     @ApiProperty({ example: 50000, description: 'Trade price' })
     price: number;
 
-    @ApiProperty({ example: 1, description: 'Trade quantity' })
+    @ApiProperty({ example: 1.5, description: 'Trade quantity' })
     quantity: number;
 
     @ApiProperty({ example: 1, description: 'Buyer user ID', required: false })

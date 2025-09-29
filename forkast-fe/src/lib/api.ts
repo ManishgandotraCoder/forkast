@@ -2,12 +2,14 @@ import axios from 'axios';
 
 // Types for API responses
 interface Balance {
-    asset: string;
-    available: number;
+    id: number;
+    userId: number;
+    symbol: string;
+    amount: number;
     locked: number;
-    total: number;
-    symbolId?: string;
-    symbolName?: string;
+    costPrice: number | null;
+    createdAt: string;
+    updatedAt: string;
 }
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001';
@@ -54,7 +56,8 @@ export const ordersAPI = {
         timeInForce: 'GTC' | 'IOC' | 'FOK' | 'DAY';
         clientOrderId?: string;
         expiresAt?: string;
-        currentBalance?: number
+        currentBalance?: number;
+        p2p?: boolean;
     }) => {
         console.log(data);
 
@@ -63,9 +66,10 @@ export const ordersAPI = {
         const orderData = {
             symbol: data.symbol,
             price: parseFloat(data.price || '0'),
-            quantity: parseInt(data.quantity),
+            quantity: parseFloat(data.quantity),
             market: isMarket,
             currentBalance: data.currentBalance || 0,
+            p2p: data.p2p || false,
         };
         return api.post(endpoint, orderData);
     },

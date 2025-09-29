@@ -505,6 +505,7 @@ const RealTimeCryptoDashboard: React.FC = () => {
                 }}
                 onClose={() => { setOpenModal({ status: false, type: "buy", symbol: undefined, currentPrice: undefined, currentBalance: undefined }); }}
                 title="Order"
+                p2p={false}
             />
 
         </div>

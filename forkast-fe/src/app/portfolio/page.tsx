@@ -8,10 +8,14 @@ import {
 } from 'lucide-react';
 
 interface Balance {
-    asset: string;
-    available: number;
+    id: number;
+    userId: number;
+    symbol: string;
+    amount: number;
     locked: number;
-    total: number;
+    costPrice: number | null;
+    createdAt: string;
+    updatedAt: string;
 }
 
 
@@ -22,7 +26,7 @@ const Portfolio: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    console.log(balances);
+    console.log(cryptoPrices);
 
     // Fetch user balances
     const fetchBalances = useCallback(async () => {
@@ -31,9 +35,15 @@ const Portfolio: React.FC = () => {
             setError(null);
             const response = await portfolioAPI.getBalances();
             setBalances(response.data.balances);
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('Failed to fetch balances:', err);
-            setError(err.response?.data?.message || 'Failed to fetch portfolio data');
+            const errorMessage = err instanceof Error && 'response' in err &&
+                typeof err.response === 'object' && err.response !== null &&
+                'data' in err.response && typeof err.response.data === 'object' &&
+                err.response.data !== null && 'message' in err.response.data
+                ? (err.response.data as { message: string }).message
+                : 'Failed to fetch portfolio data';
+            setError(errorMessage);
         } finally {
             setLoading(false);
         }
@@ -53,17 +63,6 @@ const Portfolio: React.FC = () => {
         }
     };
 
-    const formatValue = (value: number) => {
-        if (value >= 1e9) {
-            return `$${(value / 1e9).toFixed(2)}B`;
-        } else if (value >= 1e6) {
-            return `$${(value / 1e6).toFixed(2)}M`;
-        } else if (value >= 1e3) {
-            return `$${(value / 1e3).toFixed(2)}K`;
-        } else {
-            return `$${value.toFixed(2)}`;
-        }
-    };
 
     const formatChange = (change: number, isPercent: boolean = false) => {
         const formatted = isPercent ? `${Math.abs(change).toFixed(2)}%` : `$${Math.abs(change).toFixed(2)}`;
@@ -76,13 +75,10 @@ const Portfolio: React.FC = () => {
         return 'text-gray-600';
     };
 
-    const getChangeBgColor = (change: number) => {
-        if (change > 0) return 'bg-green-50';
-        if (change < 0) return 'bg-red-50';
-        return 'bg-gray-50';
-    };
-
-    // Filter balances to only show non-zero holdings
+    // Filter balances to only show non-zero holdings and exclude USD
+    const filteredBalances = balances.filter(balance =>
+        balance.amount > 0 && balance.symbol !== 'USD'
+    );
 
     return (
         <div className="bg-white rounded-lg shadow-lg p-6">
@@ -108,11 +104,11 @@ const Portfolio: React.FC = () => {
                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
                     <p className="mt-4 text-gray-600">Loading portfolio...</p>
                 </div>
-            ) : balances.length === 0 ? (
+            ) : filteredBalances.length === 0 ? (
                 <div className="text-center py-12">
                     <Wallet className="h-16 w-16 text-gray-300 mx-auto mb-4" />
                     <h3 className="text-xl font-semibold text-gray-900 mb-2">No Crypto Holdings</h3>
-                    <p className="text-gray-600 mb-4">You don't have any cryptocurrency holdings yet.</p>
+                    <p className="text-gray-600 mb-4">You don&apos;t have any cryptocurrency holdings yet.</p>
                     <button
                         onClick={() => window.location.href = '/dashboard'}
                         className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
@@ -125,46 +121,50 @@ const Portfolio: React.FC = () => {
                     <div className="min-w-full">
                         {/* Table Header */}
                         <div className="grid grid-cols-6 gap-4 px-4 py-3 bg-gray-50 rounded-lg font-semibold text-gray-700 text-sm">
-                            <div className="col-span-2">Asset</div>
-                            <div className="text-right">Balance</div>
-                            <div className="text-right">Price</div>
-                            <div className="text-right">Value</div>
-                            <div className="text-right">24h Change</div>
+                            <div>Currency</div>
+                            <div className="text-right">Count</div>
+                            <div className="text-right">Buy Price</div>
+                            <div className="text-right">Current Price</div>
+                            <div className="text-right">Purchased At</div>
+                            <div className="text-right">P&L</div>
                         </div>
 
                         {/* Table Body */}
                         <div className="space-y-2 mt-2">
-                            {balances.map((balance) => {
-                                const symbol = `${balance.asset}-USD`;
-                                const cryptoPrice = cryptoPrices.find(p => p.symbol === symbol);
-                                const value = cryptoPrice ? balance.total * cryptoPrice.price : 0;
+                            {filteredBalances.map((balance) => {
+                                const cryptoPrice = cryptoPrices.find(p => p.symbol === balance.symbol);
+
+                                const currentPrice = cryptoPrice ? cryptoPrice.price : 0;
+                                const buyPrice = balance.costPrice || 0;
+                                const amount = balance.amount;
+                                const pnl = currentPrice && buyPrice ? (currentPrice - buyPrice) * amount : 0;
+                                const pnlPercent = buyPrice ? ((currentPrice - buyPrice) / buyPrice) * 100 : 0;
 
                                 return (
                                     <div
-                                        key={balance.asset}
+                                        key={balance.symbol}
                                         className="grid grid-cols-6 gap-4 px-4 py-4 bg-white border border-gray-200 rounded-lg hover:shadow-md transition-shadow"
                                     >
-                                        {/* Asset */}
-                                        <div className="col-span-2 flex items-center space-x-3">
+                                        {/* Currency */}
+                                        <div className="flex items-center space-x-3">
                                             <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-lg">
-                                                {balance.asset.charAt(0)}
+                                                {balance.symbol.charAt(0)}
                                             </div>
                                             <div>
                                                 <div className="font-semibold text-gray-900">
-                                                    {balance.asset}
+                                                    {balance.symbol}
                                                 </div>
                                                 <div className="text-sm text-gray-500">
-                                                    {cryptoPrice?.shortName || balance.asset}
+                                                    {cryptoPrice?.shortName || balance.symbol}
                                                 </div>
                                             </div>
                                         </div>
 
-                                        {/* Balance */}
+                                        {/* Count (Amount) */}
                                         <div className="text-right">
                                             <div className="font-semibold text-gray-900">
-                                                {balance.total.toFixed(2)}
+                                                {amount?.toFixed(2)}
                                             </div>
-
                                             {balance.locked > 0 && (
                                                 <div className="text-xs text-orange-600">
                                                     Locked: {balance.locked.toFixed(2)}
@@ -172,33 +172,47 @@ const Portfolio: React.FC = () => {
                                             )}
                                         </div>
 
-                                        {/* Price */}
+                                        {/* Buy Price */}
+                                        <div className="text-right">
+                                            {buyPrice > 0 ? (
+                                                <div className="font-semibold text-gray-900">
+                                                    {formatPrice(buyPrice)}
+                                                </div>
+                                            ) : (
+                                                <div className="text-sm text-gray-500">--</div>
+                                            )}
+                                        </div>
+
+                                        {/* Current Price */}
                                         <div className="text-right">
                                             {cryptoPrice ? (
                                                 <div className="font-semibold text-gray-900">
-                                                    {formatPrice(cryptoPrice.price)}
+                                                    {formatPrice(currentPrice)}
                                                 </div>
                                             ) : (
                                                 <div className="text-sm text-gray-500">Loading...</div>
                                             )}
                                         </div>
 
-                                        {/* Value */}
+                                        {/* Purchased At */}
                                         <div className="text-right">
                                             <div className="font-semibold text-gray-900">
-                                                {formatValue(value)}
+                                                {new Date(balance.createdAt).toLocaleDateString()}
+                                            </div>
+                                            <div className="text-xs text-gray-500">
+                                                {new Date(balance.createdAt).toLocaleTimeString()}
                                             </div>
                                         </div>
 
-                                        {/* 24h Change */}
+                                        {/* P&L */}
                                         <div className="text-right">
-                                            {cryptoPrice ? (
+                                            {cryptoPrice && buyPrice > 0 ? (
                                                 <>
-                                                    <div className={`font-semibold ${getChangeColor(cryptoPrice.regularMarketChangePercent)}`}>
-                                                        {formatChange(cryptoPrice.regularMarketChangePercent, true)}
+                                                    <div className={`font-semibold ${getChangeColor(pnl)}`}>
+                                                        {formatChange(pnl)}
                                                     </div>
-                                                    <div className={`text-xs px-2 py-1 rounded-full inline-block ${getChangeBgColor(cryptoPrice.regularMarketChangePercent)} ${getChangeColor(cryptoPrice.regularMarketChangePercent)}`}>
-                                                        {cryptoPrice.regularMarketChangePercent >= 0 ? '↗' : '↘'}
+                                                    <div className={`text-xs ${getChangeColor(pnlPercent)}`}>
+                                                        {formatChange(pnlPercent, true)}
                                                     </div>
                                                 </>
                                             ) : (

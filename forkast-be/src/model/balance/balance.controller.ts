@@ -32,6 +32,11 @@ export class BalanceController {
         const balances = await this.prisma.balance.findMany({
             where: { userId: req.user.id },
         });
-        return balances
+        return balances.map(b => ({
+            asset: b.symbol,
+            available: b.amount - b.locked,
+            locked: b.locked,
+            total: b.amount,
+        }));
     }
 }

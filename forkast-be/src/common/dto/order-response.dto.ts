@@ -16,7 +16,7 @@ export class OrderResponseDto {
     @ApiProperty({ example: 50000, description: 'Order price' })
     price: number;
 
-    @ApiProperty({ example: 1, description: 'Order quantity' })
+    @ApiProperty({ example: 1.5, description: 'Order quantity' })
     quantity: number;
 
     @ApiProperty({ example: 0, description: 'Filled quantity' })
@@ -27,6 +27,9 @@ export class OrderResponseDto {
 
     @ApiProperty({ example: false, description: 'Whether this is a market order' })
     market: boolean;
+
+    @ApiProperty({ example: false, description: 'Whether this is a P2P order' })
+    p2p: boolean;
 
     @ApiProperty({ example: '2024-01-21T10:30:00.000Z', description: 'Order creation timestamp' })
     createdAt: string;

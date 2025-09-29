@@ -25,10 +25,11 @@ model Order {
   type           String
   symbol         String
   price          Float
-  quantity       Int
-  filledQuantity Int      @default(0)
+  quantity       Float
+  filledQuantity Float    @default(0)
   status         String   @default("open")
   market         Boolean  @default(false)
+  p2p            Boolean  @default(false)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
   user           User     @relation(fields: [userId], references: [id])
@@ -43,7 +44,7 @@ model Trade {
   buyerUserId  Int?
   sellerUserId Int?
   price        Float
-  quantity     Int
+  quantity     Float
   executedAt   DateTime @default(now())
   buyOrder     Order?   @relation("BuyOrder", fields: [buyOrderId], references: [id])
   sellOrder    Order?   @relation("SellOrder", fields: [sellOrderId], references: [id])

@@ -24,35 +24,7 @@ export const createOrder = async (
     price: number,
     quantity: number,
     market: boolean,
-    p2p: boolean = false,
 ): Promise<Order> => {
-    // For buy orders, check and lock USD balance
-    if (type === 'buy') {
-        const requiredUsd = quantity * price;
-        await checkBalance(tx, userId, 'USD', requiredUsd);
-
-        // Lock the USD amount for the order
-        await tx.balance.update({
-            where: { userId_symbol: { userId, symbol: 'USD' } },
-            data: {
-                amount: { decrement: requiredUsd },
-                locked: { increment: requiredUsd }
-            },
-        });
-    } else if (type === 'sell') {
-        // For sell orders, check and lock crypto balance
-        await checkBalance(tx, userId, symbol, quantity);
-
-        // Lock the crypto amount for the order
-        await tx.balance.update({
-            where: { userId_symbol: { userId, symbol } },
-            data: {
-                amount: { decrement: quantity },
-                locked: { increment: quantity }
-            },
-        });
-    }
-
     return tx.order.create({
         data: {
             userId,
@@ -61,7 +33,6 @@ export const createOrder = async (
             price,
             quantity,
             market,
-            p2p,
             status: 'open',
             filledQuantity: 0,
         },
@@ -113,44 +84,11 @@ export const transferBalance = async (
     amount: number,
     costPrice: number,
 ): Promise<void> => {
-    // For market maker (userId: 0), we don't need to create a balance record
-    // as it represents infinite liquidity
-    if (fromUserId !== 0) {
-        // Decrement from user
-        await tx.balance.update({
-            where: { userId_symbol: { userId: fromUserId, symbol } },
-            data: { amount: { decrement: amount }, costPrice: { decrement: costPrice } },
-        });
-    }
-
-    // Increment to user
-    await tx.balance.upsert({
-        where: { userId_symbol: { userId: toUserId, symbol } },
-        update: { amount: { increment: amount }, costPrice: { increment: costPrice } },
-        create: { userId: toUserId, symbol, amount, costPrice },
+    // Decrement from user
+    await tx.balance.update({
+        where: { userId_symbol: { userId: fromUserId, symbol } },
+        data: { amount: { decrement: amount }, costPrice: { decrement: costPrice } },
     });
-}
-
-export const transferFromLockedBalance = async (
-    tx: any,
-    fromUserId: number,
-    toUserId: number,
-    symbol: string,
-    amount: number,
-    costPrice: number,
-): Promise<void> => {
-    // For market maker (userId: 0), we don't need to create a balance record
-    // as it represents infinite liquidity
-    if (fromUserId !== 0) {
-        // Transfer from locked to available for the sender
-        await tx.balance.update({
-            where: { userId_symbol: { userId: fromUserId, symbol } },
-            data: {
-                locked: { decrement: amount },
-                costPrice: { decrement: costPrice }
-            },
-        });
-    }
 
     // Increment to user
     await tx.balance.upsert({
@@ -191,56 +129,24 @@ export const handleMarketOrder = async (
         await transferBalance(tx, userId, 0, symbol, quantity, price * quantity);
         await recordTrade(tx, null, order.id, price, quantity, 0, userId);
     } else {
-        // For BUY orders, check if user has enough USD to buy
-        const requiredUsd = quantity * price;
-        await checkBalance(tx, userId, 'USD', requiredUsd);
 
-        // Transfer USD from user to market maker and crypto from market maker to user
-        await transferBalance(tx, userId, 0, 'USD', requiredUsd, requiredUsd);
+        if (!currentBalance) {
+            const mmBalance = await tx.balance.findUnique({
+                where: { userId_symbol: { userId: 0, symbol } },
+            });
+            currentBalance = mmBalance?.amount || 0;
+        }
+        if (currentBalance < quantity) {
+            throw new BadRequestException(
+                `Insufficient market inventory for ${symbol}. Available: ${currentBalance}, Required: ${quantity}`
+            );
+        }
+
         await transferBalance(tx, 0, userId, symbol, quantity, price * quantity);
         await recordTrade(tx, order.id, null, price, quantity, userId, 0);
     }
 
     return await updateOrderStatus(tx, order.id, 'filled', quantity);
-}
-
-export const handleP2POrder = async (
-    tx: any,
-    order: Order,
-    userId: number,
-    symbol: string,
-    quantity: number,
-    price: number,
-    type: 'buy' | 'sell',
-): Promise<Order> => {
-    // For P2P orders, we only check USD balance and auto-execute
-    if (type === 'buy') {
-        // Check if user has enough USD to buy
-        const requiredUsd = quantity * price;
-        await checkBalance(tx, userId, 'USD', requiredUsd);
-
-        // Transfer USD from user to market maker (0) and crypto from market maker to user
-        await transferBalance(tx, userId, 0, 'USD', requiredUsd, requiredUsd);
-        await transferBalance(tx, 0, userId, symbol, quantity, requiredUsd);
-
-        // Record the trade
-        await recordTrade(tx, order.id, null, price, quantity, userId, 0);
-
-        return await updateOrderStatus(tx, order.id, 'filled', quantity);
-    } else {
-        // For sell orders, check if user has enough crypto to sell
-        await checkBalance(tx, userId, symbol, quantity);
-
-        // Transfer crypto from user to market maker (0) and USD from market maker to user
-        const receivedUsd = quantity * price;
-        await transferBalance(tx, userId, 0, symbol, quantity, receivedUsd);
-        await transferBalance(tx, 0, userId, 'USD', receivedUsd, receivedUsd);
-
-        // Record the trade
-        await recordTrade(tx, null, order.id, price, quantity, 0, userId);
-
-        return await updateOrderStatus(tx, order.id, 'filled', quantity);
-    }
 }
 
 export const handleLimitOrder = async (
@@ -288,15 +194,11 @@ export const handleLimitOrder = async (
         const tradeQuantity = Math.min(remaining, availableQuantity);
         const tradePrice = matchingOrder.price;
 
-        // Transfer balance - use locked balances for order matching
+        // Transfer balance
         if (type === 'sell') {
-            // Seller transfers crypto to buyer, buyer transfers USD to seller
-            await transferFromLockedBalance(tx, userId, matchingOrder.userId, symbol, tradeQuantity, tradePrice * tradeQuantity);
-            await transferFromLockedBalance(tx, matchingOrder.userId, userId, 'USD', tradePrice * tradeQuantity, tradePrice * tradeQuantity);
+            await transferBalance(tx, userId, matchingOrder.userId, symbol, tradeQuantity, tradePrice * tradeQuantity);
         } else {
-            // Buyer transfers USD to seller, seller transfers crypto to buyer
-            await transferFromLockedBalance(tx, userId, matchingOrder.userId, 'USD', tradePrice * tradeQuantity, tradePrice * tradeQuantity);
-            await transferFromLockedBalance(tx, matchingOrder.userId, userId, symbol, tradeQuantity, tradePrice * tradeQuantity);
+            await transferBalance(tx, matchingOrder.userId, userId, symbol, tradeQuantity, tradePrice * tradeQuantity);
         }
 
         // Record trade
@@ -316,13 +218,13 @@ export const handleLimitOrder = async (
             data: { filledQuantity: { increment: tradeQuantity } },
         });
 
-        const updatedMatchingOrder = await tx.order.update({
+        await tx.order.update({
             where: { id: matchingOrder.id },
             data: { filledQuantity: { increment: tradeQuantity } },
         });
 
         // Close matching order if fully filled
-        if (updatedMatchingOrder.filledQuantity >= updatedMatchingOrder.quantity) {
+        if (matchingOrder.filledQuantity + tradeQuantity >= matchingOrder.quantity) {
             await updateOrderStatus(tx, matchingOrder.id, 'filled');
         }
 
