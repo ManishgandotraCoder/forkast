@@ -197,14 +197,20 @@ npm start
 
 ## Screenshots
 
-<img width="1445" height="690" alt="Screenshot 2025-09-25 at 6 15 24 AM" src="https://github.com/user-attachments/assets/33f88007-7826-4e4d-8fbb-9bad1db3f580" />
+<img width="1470" height="710" alt="Screenshot 2025-09-29 at 11 16 52 AM" src="https://github.com/user-attachments/assets/4c529840-064c-4350-a165-2592437758fe" />
 
-<img width="1445" height="644" alt="Screenshot 2025-09-25 at 6 15 32 AM" src="https://github.com/user-attachments/assets/c05f4b6d-8c51-494f-8e01-4b00ff969a7d" />
+<img width="1470" height="710" alt="Screenshot 2025-09-29 at 11 16 45 AM" src="https://github.com/user-attachments/assets/e98fdadf-eaa0-4ce1-885e-5810bd350958" />
 
-<img width="1445" height="674" alt="Screenshot 2025-09-25 at 6 15 43 AM" src="https://github.com/user-attachments/assets/4c45bdbc-dd5e-422f-bd69-017a524ba7db" />
+<img width="1470" height="710" alt="Screenshot 2025-09-29 at 11 16 41 AM" src="https://github.com/user-attachments/assets/e423c8e0-5a60-4283-bbc0-d891d0a702bd" />
 
-<img width="1445" height="684" alt="Screenshot 2025-09-25 at 6 15 59 AM" src="https://github.com/user-attachments/assets/686c7e94-9186-430e-8f0d-24f72f0969dc" />
+<img width="1470" height="710" alt="Screenshot 2025-09-29 at 11 16 37 AM" src="https://github.com/user-attachments/assets/012d943e-1161-4799-8afa-ac518dd6bce5" />
 
-<img width="1445" height="626" alt="Screenshot 2025-09-25 at 6 16 06 AM" src="https://github.com/user-attachments/assets/8ea6bd49-c662-411f-9220-5017563ba016" />
+<img width="1470" height="710" alt="Screenshot 2025-09-29 at 11 16 34 AM" src="https://github.com/user-attachments/assets/ab2b4591-1f98-4797-a0f9-30cc79e31c66" />
 
-<img width="1445" height="626" alt="Screenshot 2025-09-25 at 6 16 11 AM" src="https://github.com/user-attachments/assets/1e1e54de-8ba5-468d-be8e-e5943f32d9fb" />
+<img width="1470" height="710" alt="Screenshot 2025-09-29 at 11 16 31 AM" src="https://github.com/user-attachments/assets/8e3d9b04-e63e-4a13-9fbb-5df9ea1c6061" />
+
+<img width="1470" height="710" alt="Screenshot 2025-09-29 at 11 16 22 AM" src="https://github.com/user-attachments/assets/891380d9-e989-4fc0-b6ec-0fec0fce506d" />
+
+<img width="1470" height="710" alt="Screenshot 2025-09-29 at 11 16 16 AM" src="https://github.com/user-attachments/assets/a3ca43a8-c3c9-4517-9d8a-95c580b9c7bb" />
+
+<img width="1470" height="710" alt="Screenshot 2025-09-29 at 11 16 25 AM" src="https://github.com/user-attachments/assets/6c7e8652-ef44-4bae-9138-bf9efa1aca4c" />
