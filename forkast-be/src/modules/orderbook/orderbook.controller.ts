@@ -54,7 +54,8 @@ export class OrderbookController {
             body.quantity,
             body.market || false,
             body.currentBalance || 0,
-            body.p2p || false
+            body.p2p || false,
+            body.userId
         );
     }
     //
@@ -120,7 +121,8 @@ export class OrderbookController {
             body.quantity,
             body.market || false,
             body.currentBalance || 0,
-            body.p2p || false
+            body.p2p || false,
+            body.userId
         );
     }
     @UseGuards(JwtAuthGuard)

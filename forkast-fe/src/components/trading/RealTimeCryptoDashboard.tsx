@@ -17,11 +17,11 @@ import {
     Eye,
     Search,
     ArrowUpDown,
-    Minus,
     Plus,
     AlertCircle,
     Clock,
     BarChart3,
+    TrendingDown,
 } from 'lucide-react';
 import OrderModal from './OrderModal';
 
@@ -303,7 +303,7 @@ const RealTimeCryptoDashboard: React.FC = () => {
                     <div className="overflow-x-auto">
                         <div className="min-w-full">
                             {/* Header */}
-                            <div className="grid grid-cols-6 gap-4 px-4 py-4 bg-gradient-to-r from-gray-50 to-gray-100/50 rounded-xl font-semibold text-gray-700 text-sm border border-gray-200/50">
+                            <div className="grid grid-cols-7 gap-4 px-4 py-4 bg-gradient-to-r from-gray-50 to-gray-100/50 rounded-xl font-semibold text-gray-700 text-sm border border-gray-200/50">
                                 <div className="col-span-2 flex items-center space-x-2">
                                     <Star className="h-4 w-4" />
                                     <span>Asset</span>
@@ -311,7 +311,8 @@ const RealTimeCryptoDashboard: React.FC = () => {
                                 <div className="text-right">Price</div>
                                 <div className="text-right">24h Change</div>
                                 <div className="text-right">Market Cap</div>
-                                <div className="text-center">Actions</div>
+                                <div className="text-center">Buy</div>
+                                <div className="text-center">Sell</div>
                             </div>
 
                             {/* Body */}
@@ -328,7 +329,7 @@ const RealTimeCryptoDashboard: React.FC = () => {
                                     filteredSorted.map((crypto, index) => (
                                         <div
                                             key={crypto.symbol}
-                                            className={`grid grid-cols-6 gap-4 px-4 py-4 bg-white/80 backdrop-blur-sm border border-gray-200/50 rounded-xl hover:shadow-lg hover:border-gray-300/50 transition-all duration-300 ${favoritesSet.has(crypto.symbol) ? 'ring-2 ring-yellow-200/50 bg-yellow-50/30' : ''}`}
+                                            className={`grid grid-cols-7 gap-4 px-4 py-4 bg-white/80 backdrop-blur-sm border border-gray-200/50 rounded-xl hover:shadow-lg hover:border-gray-300/50 transition-all duration-300 ${favoritesSet.has(crypto.symbol) ? 'ring-2 ring-yellow-200/50 bg-yellow-50/30' : ''}`}
                                             style={{ animationDelay: `${index * 50}ms` }}
                                         >
                                             {/* Asset */}
@@ -378,8 +379,8 @@ const RealTimeCryptoDashboard: React.FC = () => {
                                             </div>
 
 
-                                            {/* Actions */}
-                                            <div className="flex items-center justify-center space-x-2">
+                                            {/* Buy Action */}
+                                            <div className="flex items-center justify-center">
                                                 <button
                                                     onClick={() => setOpenModal({ status: true, type: "buy", symbol: crypto.symbol, currentPrice: crypto.price, currentBalance: crypto.marketCap })}
                                                     className="flex items-center space-x-1 px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium shadow-sm hover:shadow-md"
@@ -388,7 +389,18 @@ const RealTimeCryptoDashboard: React.FC = () => {
                                                     <Plus className="h-3 w-3" />
                                                     <span>Buy</span>
                                                 </button>
+                                            </div>
 
+                                            {/* Sell Action */}
+                                            <div className="flex items-center justify-center">
+                                                <button
+                                                    onClick={() => setOpenModal({ status: true, type: "sell", symbol: crypto.symbol, currentPrice: crypto.price, currentBalance: 0 })}
+                                                    className="flex items-center space-x-1 px-3 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium shadow-sm hover:shadow-md"
+                                                    aria-label={`Sell ${crypto.symbol}`}
+                                                >
+                                                    <TrendingDown className="h-3 w-3" />
+                                                    <span>Sell</span>
+                                                </button>
                                             </div>
                                         </div>
                                     ))
@@ -428,14 +440,21 @@ const RealTimeCryptoDashboard: React.FC = () => {
 
                                 <div className="flex space-x-2">
                                     <button
-                                        onClick={() => setOpenModal({ status: true, type: "buy", symbol: crypto.symbol, currentPrice: crypto.price })}
+                                        onClick={() => setOpenModal({ status: true, type: "buy", symbol: crypto.symbol, currentPrice: crypto.price, currentBalance: crypto.marketCap })}
                                         className="flex-1 flex items-center justify-center space-x-1 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium"
                                         aria-label={`Buy ${crypto.symbol}`}
                                     >
                                         <Plus className="h-3 w-3" />
                                         <span>Buy</span>
                                     </button>
-
+                                    <button
+                                        onClick={() => setOpenModal({ status: true, type: "sell", symbol: crypto.symbol, currentPrice: crypto.price, currentBalance: 0 })}
+                                        className="flex-1 flex items-center justify-center space-x-1 px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium"
+                                        aria-label={`Sell ${crypto.symbol}`}
+                                    >
+                                        <TrendingDown className="h-3 w-3" />
+                                        <span>Sell</span>
+                                    </button>
                                 </div>
                             </div>
                         ))}

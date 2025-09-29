@@ -160,26 +160,6 @@ export default function ProfilePage() {
                                     )}
                                 </div>
 
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        Age
-                                    </label>
-                                    {isEditing ? (
-                                        <input
-                                            type="number"
-                                            value={formData.age}
-                                            onChange={(e) => setFormData({ ...formData, age: e.target.value })}
-                                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                                            placeholder="Enter your age"
-                                            min="13"
-                                            max="120"
-                                        />
-                                    ) : (
-                                        <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-gray-900">
-                                            {profile?.age || 'Not provided'}
-                                        </div>
-                                    )}
-                                </div>
                             </div>
 
                             {isEditing && (
@@ -231,21 +211,6 @@ export default function ProfilePage() {
                                 </div>
                             </div>
 
-                            {/* Quick Actions */}
-                            <div className="pt-4">
-                                <h3 className="text-sm font-medium text-gray-700 mb-3">Quick Actions</h3>
-                                <div className="space-y-2">
-                                    <button className="w-full text-left px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 rounded-md transition-colors duration-200">
-                                        View Transaction History
-                                    </button>
-                                    <button className="w-full text-left px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 rounded-md transition-colors duration-200">
-                                        Download Account Data
-                                    </button>
-                                    <button className="w-full text-left px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 rounded-md transition-colors duration-200">
-                                        Security Settings
-                                    </button>
-                                </div>
-                            </div>
                         </div>
                     </div>
                 </div>

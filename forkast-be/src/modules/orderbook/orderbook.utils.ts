@@ -123,12 +123,13 @@ export const transferBalance = async (
         });
     }
 
-    // Increment to user
-    await tx.balance.upsert({
-        where: { userId_symbol: { userId: toUserId, symbol } },
-        update: { amount: { increment: amount }, costPrice: { increment: costPrice } },
-        create: { userId: toUserId, symbol, amount, costPrice },
-    });
+    if (toUserId !== 0) {
+        await tx.balance.upsert({
+            where: { userId_symbol: { userId: toUserId, symbol } },
+            update: { amount: { increment: amount }, costPrice: { increment: costPrice } },
+            create: { userId: toUserId, symbol, amount, costPrice },
+        });
+    }
 }
 
 export const transferFromLockedBalance = async (
@@ -152,12 +153,14 @@ export const transferFromLockedBalance = async (
         });
     }
 
-    // Increment to user
-    await tx.balance.upsert({
-        where: { userId_symbol: { userId: toUserId, symbol } },
-        update: { amount: { increment: amount }, costPrice: { increment: costPrice } },
-        create: { userId: toUserId, symbol, amount, costPrice },
-    });
+    // Only increment to user if they are not the market maker (userId: 0)
+    if (toUserId !== 0) {
+        await tx.balance.upsert({
+            where: { userId_symbol: { userId: toUserId, symbol } },
+            update: { amount: { increment: amount }, costPrice: { increment: costPrice } },
+            create: { userId: toUserId, symbol, amount, costPrice },
+        });
+    }
 }
 
 export const checkBalance = async (
@@ -169,10 +172,10 @@ export const checkBalance = async (
     const balance = await tx.balance.findUnique({
         where: { userId_symbol: { userId, symbol } },
     });
-
-    if (!balance || balance.amount < requiredAmount) {
+    const availableAmount = balance ? balance.amount - balance.locked : 0;
+    if (!balance || availableAmount < requiredAmount) {
         throw new BadRequestException(
-            `Insufficient balance for ${symbol}. Available: ${balance?.amount ?? 0}, Required: ${requiredAmount}`
+            `Insufficient balance for ${symbol}. Available: ${availableAmount.toFixed(2)}, Required: ${requiredAmount.toFixed(2)}`
         );
     }
 }
@@ -212,34 +215,127 @@ export const handleP2POrder = async (
     quantity: number,
     price: number,
     type: 'buy' | 'sell',
+    sellerId?: number,
 ): Promise<Order> => {
-    // For P2P orders, we only check USD balance and auto-execute
+    if (!sellerId) {
+        throw new BadRequestException('Seller ID is required for P2P orders');
+    }
+
+    // Find the matching order from the other party
+    const oppositeType = type === 'buy' ? 'sell' : 'buy';
+    console.log({
+        userId: sellerId,
+        type: oppositeType,
+        symbol,
+        status: 'open'
+    });
+
+    const matchingOrder = await tx.order.findFirst({
+        where: {
+            // userId: sellerId,
+            type: oppositeType,
+            symbol,
+            status: 'open',
+            price: type === 'buy' ? { lte: price } : { gte: price }, // Buy orders match with sell orders at or below price
+        },
+        orderBy: type === 'buy' ? [{ price: 'asc' }, { createdAt: 'asc' }] : [{ price: 'desc' }, { createdAt: 'asc' }],
+    });
+
+    if (!matchingOrder) {
+        throw new BadRequestException(`No matching ${oppositeType} order found for P2P trade`);
+    }
+
+    // Calculate the trade quantity (minimum of both orders' remaining quantities)
+    const availableQuantity = matchingOrder.quantity - matchingOrder.filledQuantity;
+    const tradeQuantity = Math.min(quantity, availableQuantity);
+    const tradePrice = matchingOrder.price; // Use the matching order's price
+
     if (type === 'buy') {
-        // Check if user has enough USD to buy
-        const requiredUsd = quantity * price;
+        // For buy orders: buyer gives USD to seller, seller gives crypto to buyer
+        const requiredUsd = tradeQuantity * tradePrice;
+
+        // Check if buyer has enough USD
         await checkBalance(tx, userId, 'USD', requiredUsd);
 
-        // Transfer USD from user to market maker (0) and crypto from market maker to user
-        await transferBalance(tx, userId, 0, 'USD', requiredUsd, requiredUsd);
-        await transferBalance(tx, 0, userId, symbol, quantity, requiredUsd);
+        // Check if seller has enough crypto
+        // await checkBalance(tx, sellerId, symbol, tradeQuantity);
+
+        // Transfer USD from buyer to seller
+        await transferBalance(tx, userId, sellerId, 'USD', requiredUsd, requiredUsd);
+
+        // Transfer crypto from seller to buyer
+        await transferBalance(tx, sellerId, userId, symbol, tradeQuantity, requiredUsd);
 
         // Record the trade
-        await recordTrade(tx, order.id, null, price, quantity, userId, 0);
+        await recordTrade(tx, order.id, matchingOrder.id, tradePrice, tradeQuantity, userId, sellerId);
 
-        return await updateOrderStatus(tx, order.id, 'filled', quantity);
+        // Update both orders' filled quantities
+        await tx.order.update({
+            where: { id: order.id },
+            data: { filledQuantity: { increment: tradeQuantity } },
+        });
+
+        await tx.order.update({
+            where: { id: matchingOrder.id },
+            data: { filledQuantity: { increment: tradeQuantity } },
+        });
+
+        // Check if orders are fully filled and update status
+        const updatedOrder = await tx.order.findUnique({ where: { id: order.id } });
+        const updatedMatchingOrder = await tx.order.findUnique({ where: { id: matchingOrder.id } });
+
+        if (updatedOrder && updatedOrder.filledQuantity >= updatedOrder.quantity) {
+            await updateOrderStatus(tx, order.id, 'filled');
+        }
+
+        if (updatedMatchingOrder && updatedMatchingOrder.filledQuantity >= updatedMatchingOrder.quantity) {
+            await updateOrderStatus(tx, matchingOrder.id, 'filled');
+        }
+
+        return updatedOrder || order;
     } else {
-        // For sell orders, check if user has enough crypto to sell
-        await checkBalance(tx, userId, symbol, quantity);
+        // For sell orders: seller gives crypto to buyer, buyer gives USD to seller
+        const receivedUsd = tradeQuantity * tradePrice;
 
-        // Transfer crypto from user to market maker (0) and USD from market maker to user
-        const receivedUsd = quantity * price;
-        await transferBalance(tx, userId, 0, symbol, quantity, receivedUsd);
-        await transferBalance(tx, 0, userId, 'USD', receivedUsd, receivedUsd);
+        // Check if seller has enough crypto
+        // await checkBalance(tx, userId, symbol, tradeQuantity);
+
+        // Check if buyer has enough USD
+        await checkBalance(tx, sellerId, 'USD', receivedUsd);
+
+        // Transfer crypto from seller to buyer
+        await transferBalance(tx, userId, sellerId, symbol, tradeQuantity, receivedUsd);
+
+        // Transfer USD from buyer to seller
+        await transferBalance(tx, sellerId, userId, 'USD', receivedUsd, receivedUsd);
 
         // Record the trade
-        await recordTrade(tx, null, order.id, price, quantity, 0, userId);
+        await recordTrade(tx, matchingOrder.id, order.id, tradePrice, tradeQuantity, sellerId, userId);
 
-        return await updateOrderStatus(tx, order.id, 'filled', quantity);
+        // Update both orders' filled quantities
+        await tx.order.update({
+            where: { id: order.id },
+            data: { filledQuantity: { increment: tradeQuantity } },
+        });
+
+        await tx.order.update({
+            where: { id: matchingOrder.id },
+            data: { filledQuantity: { increment: tradeQuantity } },
+        });
+
+        // Check if orders are fully filled and update status
+        const updatedOrder = await tx.order.findUnique({ where: { id: order.id } });
+        const updatedMatchingOrder = await tx.order.findUnique({ where: { id: matchingOrder.id } });
+
+        if (updatedOrder && updatedOrder.filledQuantity >= updatedOrder.quantity) {
+            await updateOrderStatus(tx, order.id, 'filled');
+        }
+
+        if (updatedMatchingOrder && updatedMatchingOrder.filledQuantity >= updatedMatchingOrder.quantity) {
+            await updateOrderStatus(tx, matchingOrder.id, 'filled');
+        }
+
+        return updatedOrder || order;
     }
 }
 

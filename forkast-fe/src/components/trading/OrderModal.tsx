@@ -5,6 +5,17 @@ import { Dialog, Transition } from '@headlessui/react';
 import { X, TrendingUp, TrendingDown, Activity } from 'lucide-react';
 import { ordersAPI, portfolioAPI } from '@/lib/api';
 import { useWebSocket } from '@/contexts/WebSocketContext';
+import { useAuth } from '@/contexts/AuthContext';
+
+interface BackendBalance {
+    symbol: string;
+    amount: number;
+    locked: number;
+    total: number;
+    costPrice: number | null;
+    createdAt: string;
+    updatedAt: string;
+}
 
 type ModalSize = 'sm' | 'md' | 'lg' | 'xl' | 'full';
 
@@ -20,6 +31,7 @@ interface ModalProps {
     symbol?: string;
     currentPrice?: number;
     p2p?: boolean;
+    sellerId?: number;
 }
 
 const sizeClasses: Record<ModalSize, string> = {
@@ -41,10 +53,12 @@ export default function OrderModal({
     symbol = 'BTC-USD',
     currentPrice,
     p2p = false,
+    sellerId,
 }: ModalProps) {
 
     const defaultInitialFocus = useRef<HTMLButtonElement>(null);
     const { cryptoPrices, isConnected } = useWebSocket();
+    const { user } = useAuth();
 
     // Order form state
     const [orderData, setOrderData] = useState({
@@ -93,7 +107,7 @@ export default function OrderModal({
             setOrderData({
                 symbol: symbol,
                 side: open.type === 'buy' ? 'BUY' as 'BUY' | 'SELL' : 'SELL' as 'BUY' | 'SELL',
-                type: 'MARKET' as 'MARKET' | 'LIMIT',
+                type: p2p ? 'LIMIT' as 'MARKET' | 'LIMIT' : 'MARKET' as 'MARKET' | 'LIMIT',
                 quantity: '',
                 price: marketPrice ? marketPrice.toFixed(2) : '',
                 clientOrderId: '',
@@ -101,7 +115,7 @@ export default function OrderModal({
             setMessage(null);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [open.status, symbol, open.type]); // Intentionally excluding realTimePrice and currentPrice to avoid overriding user selections
+    }, [open.status, symbol, open.type, p2p]); // Intentionally excluding realTimePrice and currentPrice to avoid overriding user selections
 
     // Update price when real-time price changes (for initialization)
     useEffect(() => {
@@ -121,12 +135,15 @@ export default function OrderModal({
             setLoadingBalances(true);
             try {
                 const response = await portfolioAPI.getBalances();
-                setBalances(response.data.balances.map((balance: { symbol: string; amount: number; locked: number }) => ({
+                console.log('Raw balance response:', response.data);
+                const mappedBalances = response.data.balances.map((balance: BackendBalance) => ({
                     asset: balance.symbol,
                     available: balance.amount,
                     locked: balance.locked,
-                    total: balance.amount + balance.locked
-                })));
+                    total: balance.total
+                }));
+                console.log('Mapped balances:', mappedBalances);
+                setBalances(mappedBalances);
             } catch (error) {
                 console.error('Failed to fetch balances:', error);
                 setBalances([]);
@@ -138,14 +155,39 @@ export default function OrderModal({
         fetchBalances();
     }, [open.status]);
 
-    // Get available balance for the base asset
-    const getAvailableBalance = () => {
-        const baseAsset = orderData.symbol.split('-')[0];
-        const balance = balances.find(b => b.asset === baseAsset);
-        return balance ? balance.available : 0;
-    };
+    // Get available balance for the appropriate asset
+    const getAvailableBalance = useCallback(() => {
+        if (loadingBalances || balances.length === 0) {
+            return 0;
+        }
+
+        if (orderData.side === 'SELL') {
+            // For sell orders, we need the base asset (what we're selling)
+            const baseAsset = orderData.symbol.split('-')[0];
+            const balance = balances.find(b => b.asset === orderData.symbol);
+            console.log('SELL balance check:', { baseAsset, balance, allBalances: balances });
+            return balance ? balance.available : 0;
+        } else {
+            // For buy orders, we need the quote asset (USD to buy with)
+            const quoteAsset = orderData.symbol.split('-')[1];
+            const balance = balances.find(b => b.asset === quoteAsset);
+            console.log('BUY balance check:', { quoteAsset, balance, allBalances: balances });
+            return balance ? balance.available : 0;
+        }
+    }, [orderData.symbol, orderData.side, balances, loadingBalances]);
 
     const availableBalance = getAvailableBalance();
+
+    // Debug available balance changes
+    useEffect(() => {
+        console.log('Available balance changed:', {
+            availableBalance,
+            orderDataSide: orderData.side,
+            orderDataSymbol: orderData.symbol,
+            balances,
+            loadingBalances
+        });
+    }, [availableBalance, orderData.side, orderData.symbol, balances, loadingBalances]);
 
     // Price validation removed - users can enter any price
 
@@ -161,8 +203,33 @@ export default function OrderModal({
 
     // Memoized handlers to prevent re-renders
     const handleQuantityChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-        setOrderData(prev => ({ ...prev, quantity: e.target.value }));
-    }, []);
+        const newQuantity = e.target.value;
+        setOrderData(prev => {
+            const updated = { ...prev, quantity: newQuantity };
+
+            // For P2P mode, users can input total value directly
+            // No automatic price calculation needed
+
+            return updated;
+        });
+
+        // Real-time validation for both buy and sell orders
+        if (newQuantity) {
+            const requestedQuantity = parseFloat(newQuantity);
+            const available = getAvailableBalance();
+
+            if (requestedQuantity > available) {
+                const asset = orderData.side === 'SELL' ? orderData.symbol.split('-')[0] : orderData.symbol.split('-')[1];
+                setMessage({
+                    type: 'error',
+                    text: `You can only ${orderData.side.toLowerCase()} up to ${available.toFixed(2)} ${asset}. You entered ${requestedQuantity.toFixed(2)} ${asset}.`
+                });
+            } else {
+                // Clear error message if quantity is valid
+                setMessage(null);
+            }
+        }
+    }, [orderData.side, orderData.symbol, getAvailableBalance]);
 
     const handlePriceChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
         setOrderData(prev => ({ ...prev, price: e.target.value }));
@@ -172,7 +239,7 @@ export default function OrderModal({
     const handlePercentageClick = useCallback((percentage: number) => {
         setOrderData(prev => ({
             ...prev,
-            quantity: (availableBalance * percentage).toFixed(8)
+            quantity: (availableBalance * percentage).toFixed(2)
         }));
     }, [availableBalance]);
 
@@ -189,15 +256,14 @@ export default function OrderModal({
 
         // Price validation removed - users can enter any price
 
-        if (orderData.side === 'SELL') {
-            const requestedQuantity = parseFloat(orderData.quantity) || 0;
-            const available = getAvailableBalance();
+        // Check balance for both buy and sell orders
+        const requestedQuantity = parseFloat(orderData.quantity) || 0;
+        const available = getAvailableBalance();
 
-            if (requestedQuantity > available) {
-                const baseAsset = orderData.symbol.split('-')[0];
-                setMessage({ type: 'error', text: `Insufficient balance. Available: ${available.toFixed(2)} ${baseAsset}` });
-                return false;
-            }
+        if (requestedQuantity > available) {
+            const asset = orderData.side === 'SELL' ? orderData.symbol.split('-')[0] : orderData.symbol.split('-')[1];
+            setMessage({ type: 'error', text: `Insufficient balance. You can only ${orderData.side.toLowerCase()} up to ${available.toFixed(2)} ${asset}. You entered ${requestedQuantity.toFixed(2)} ${asset}.` });
+            return false;
         }
 
         return true;
@@ -214,7 +280,7 @@ export default function OrderModal({
         setMessage(null);
 
         try {
-            console.log("herre", open);
+            console.log("herre", orderData);
 
             const response = await ordersAPI.placeOrder({
                 symbol: orderData.symbol,
@@ -226,6 +292,8 @@ export default function OrderModal({
                 clientOrderId: orderData.clientOrderId || undefined,
                 currentBalance: open.currentBalance,
                 p2p: p2p,
+                sellerId: p2p ? sellerId : undefined,
+                userId: user?.id,
             });
 
             console.log('Order placement response:', response.data);
@@ -406,32 +474,44 @@ export default function OrderModal({
 
                                         {/* Order Type */}
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-2">Order Type</label>
+                                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                                Order Type
+                                                {p2p && (
+                                                    <span className="ml-2 text-xs text-gray-500">(P2P Mode - Fixed to Limit)</span>
+                                                )}
+                                            </label>
                                             <div className="flex space-x-2">
                                                 <button
                                                     type="button"
-                                                    onClick={() => handleOrderTypeChange('LIMIT')}
+                                                    onClick={() => !p2p && handleOrderTypeChange('LIMIT')}
+                                                    disabled={p2p}
                                                     className={`flex-1 px-4 py-2 rounded-md font-medium ${orderData.type === 'LIMIT'
                                                         ? 'bg-indigo-600 text-white'
                                                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                                                        }`}
+                                                        } ${p2p ? 'opacity-50 cursor-not-allowed' : ''}`}
                                                 >
                                                     Limit
                                                 </button>
                                                 <button
                                                     type="button"
-                                                    onClick={() => handleOrderTypeChange('MARKET')}
+                                                    onClick={() => !p2p && handleOrderTypeChange('MARKET')}
+                                                    disabled={p2p}
                                                     className={`flex-1 px-4 py-2 rounded-md font-medium ${orderData.type === 'MARKET'
                                                         ? 'bg-indigo-600 text-white'
                                                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                                                        }`}
+                                                        } ${p2p ? 'opacity-50 cursor-not-allowed' : ''}`}
                                                 >
                                                     Market
                                                 </button>
                                             </div>
-                                            {orderData.type === 'MARKET' && (
+                                            {orderData.type === 'MARKET' && !p2p && (
                                                 <p className="mt-1 text-xs text-gray-500">
                                                     Market orders execute immediately at the best available price
+                                                </p>
+                                            )}
+                                            {p2p && (
+                                                <p className="mt-1 text-xs text-gray-500">
+                                                    P2P orders are limit orders that match with other users
                                                 </p>
                                             )}
                                         </div>
@@ -445,7 +525,12 @@ export default function OrderModal({
                                                     Quantity
                                                     {orderData.side === 'SELL' && (
                                                         <span className="ml-2 text-sm text-gray-500">
-                                                            (Available: {loadingBalances ? 'Loading...' : `${availableBalance.toFixed(8)} ${orderData.symbol.split('-')[0]}`})
+                                                            (Available: {loadingBalances ? 'Loading...' : `${availableBalance.toFixed(2)} ${orderData.symbol.split('-')[0]}`})
+                                                        </span>
+                                                    )}
+                                                    {orderData.side === 'BUY' && (
+                                                        <span className="ml-2 text-sm text-gray-500">
+                                                            (Available: {loadingBalances ? 'Loading...' : `${availableBalance.toFixed(2)} ${orderData.symbol.split('-')[1]}`})
                                                         </span>
                                                     )}
                                                 </label>
@@ -455,10 +540,14 @@ export default function OrderModal({
                                                     required
                                                     step="0.00000001"
                                                     min="0"
+                                                    max={availableBalance}
                                                     placeholder="0.00000000"
                                                     value={orderData.quantity}
                                                     onChange={handleQuantityChange}
-                                                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                                    className={`mt-1 block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none sm:text-sm ${orderData.quantity && parseFloat(orderData.quantity) > availableBalance
+                                                        ? 'border-red-300 focus:ring-red-500 focus:border-red-500 bg-red-50'
+                                                        : 'border-gray-300 focus:ring-indigo-500 focus:border-indigo-500'
+                                                        }`}
                                                 />
                                                 {orderData.side === 'SELL' && !loadingBalances && (
                                                     <div className="mt-2 flex justify-between text-xs text-gray-500">
@@ -496,12 +585,13 @@ export default function OrderModal({
 
                                             <div>
                                                 <label htmlFor="price" className="block text-sm font-medium text-gray-700">
-                                                    {orderData.type === 'MARKET' ? 'Market Price (USD)' : 'Price (USD)'}
+                                                    {p2p ? 'Total Value (USD)' : (orderData.type === 'MARKET' ? 'Market Price (USD)' : 'Price (USD)')}
                                                     {(realTimePrice || currentPrice) && (
                                                         <span className="ml-2 text-xs text-gray-500">
                                                             ({realTimePrice ? 'Live' : 'Current'}: ${(realTimePrice || currentPrice || 0).toFixed(2)})
                                                         </span>
                                                     )}
+
                                                 </label>
                                                 <div className="relative">
                                                     <input
@@ -512,13 +602,18 @@ export default function OrderModal({
                                                         min="0"
                                                         placeholder="0.00"
                                                         value={orderData.price}
-                                                        onChange={orderData.type === 'LIMIT' ? handlePriceChange : undefined}
-                                                        readOnly={orderData.type === 'MARKET'}
-                                                        className={`mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm ${orderData.type === 'MARKET' ? 'bg-gray-50 text-gray-600 cursor-not-allowed' : ''}`}
+                                                        onChange={orderData.type === 'LIMIT' || p2p ? handlePriceChange : undefined}
+                                                        readOnly={orderData.type === 'MARKET' && !p2p}
+                                                        className={`mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm ${(orderData.type === 'MARKET' && !p2p) ? 'bg-gray-50 text-gray-600 cursor-not-allowed' : ''}`}
                                                     />
-                                                    {orderData.type === 'MARKET' && (
+                                                    {orderData.type === 'MARKET' && !p2p && (
                                                         <p className="mt-1 text-xs text-gray-500">
                                                             Market orders execute at the current live price
+                                                        </p>
+                                                    )}
+                                                    {p2p && (
+                                                        <p className="mt-1 text-xs text-gray-500">
+                                                            Enter the total USD value you want to spend (for buy) or receive (for sell)
                                                         </p>
                                                     )}
                                                 </div>
@@ -534,7 +629,7 @@ export default function OrderModal({
                                                 : 'bg-red-600 hover:bg-red-700 focus:ring-red-500'
                                                 } focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed`}
                                         >
-                                            {loading ? 'Placing Order...' : `${orderData.side} ${orderData.symbol}`}
+                                            {loading ? 'Placing Order...' : `${p2p ? 'P2P ' : ''}${orderData.side} ${orderData.symbol}`}
                                         </button>
                                     </form>
                                 </div>

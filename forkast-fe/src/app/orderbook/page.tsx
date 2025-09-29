@@ -14,8 +14,6 @@ import {
     ChevronDown,
     BarChart3,
     Activity,
-    Wifi,
-    WifiOff,
 } from 'lucide-react';
 import Pagination from '@/components/ui/Pagination';
 import ButtonComponent from '@/components/ui/Button';
@@ -664,11 +662,11 @@ export default function OrderBookPage() {
                                             <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-right text-gray-500 hidden md:table-cell">
                                                 {user?.email !== ask.email ? (
                                                     <ButtonComponent
-                                                        className='bg-red-500 hover:bg-red-600 text-white'
-                                                        title='Sell'
+                                                        className='bg-green-500 hover:bg-green-600 text-white'
+                                                        title='Buy'
                                                         onClick={() => {
                                                             const askPrice = typeof ask.price === 'string' ? parseFloat(ask.price) : ask.price;
-                                                            handleOpenOrderModal('sell', askPrice);
+                                                            handleOpenOrderModal('buy', askPrice);
                                                         }}
                                                     />
                                                 ) : null}
@@ -723,11 +721,11 @@ export default function OrderBookPage() {
                                             <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-right text-gray-500 hidden md:table-cell">
                                                 {user?.email !== bid.email ? (
                                                     <ButtonComponent
-                                                        className='bg-green-500 hover:bg-green-600 text-white'
-                                                        title='Buy'
+                                                        className='bg-red-500 hover:bg-red-600 text-white'
+                                                        title='Sell'
                                                         onClick={() => {
                                                             const bidPrice = typeof bid.price === 'string' ? parseFloat(bid.price) : bid.price;
-                                                            handleOpenOrderModal('buy', bidPrice);
+                                                            handleOpenOrderModal('sell', bidPrice);
                                                         }}
                                                     />
                                                 ) : null}

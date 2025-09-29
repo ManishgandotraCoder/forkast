@@ -34,7 +34,18 @@ const Portfolio: React.FC = () => {
             setLoading(true);
             setError(null);
             const response = await portfolioAPI.getBalances();
-            setBalances(response.data.balances);
+            // Map the response to match the expected Balance interface
+            const mappedBalances = response.data.balances.map((balance: { symbol: string; amount: number; locked: number; costPrice: number | null; createdAt: string; updatedAt: string }) => ({
+                id: 0, // Not provided by backend
+                userId: 0, // Not provided by backend
+                symbol: balance.symbol,
+                amount: balance.amount,
+                locked: balance.locked,
+                costPrice: balance.costPrice,
+                createdAt: balance.createdAt,
+                updatedAt: balance.updatedAt,
+            }));
+            setBalances(mappedBalances);
         } catch (err: unknown) {
             console.error('Failed to fetch balances:', err);
             const errorMessage = err instanceof Error && 'response' in err &&

@@ -1,5 +1,20 @@
-import { IsBoolean, IsNumber, IsOptional, IsPositive, IsString } from 'class-validator';
+import { IsBoolean, IsNumber, IsOptional, IsPositive, IsString, IsObject, ValidateNested } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
+
+export class UserDetailsDto {
+  @ApiProperty({ example: '1', description: 'User ID' })
+  @IsString()
+  id: string;
+
+  @ApiProperty({ example: 'user@example.com', description: 'User email' })
+  @IsString()
+  email: string;
+
+  @ApiProperty({ example: 'John Doe', description: 'User name' })
+  @IsString()
+  name: string;
+}
 
 export class PlaceOrderDto {
   @ApiProperty({ example: 'BTC-USD', description: 'Trading symbol' })
@@ -30,4 +45,19 @@ export class PlaceOrderDto {
   @IsNumber({}, { message: 'currentBalance must be a number' })
   @IsOptional()
   currentBalance?: number;
+
+  @ApiProperty({ example: 1, description: 'Seller ID for P2P orders', required: false })
+  @IsNumber()
+  @IsPositive()
+  @IsOptional()
+  sellerId?: number;
+
+  @ApiProperty({
+    example: 1,
+    description: 'User ID for the order',
+    required: false
+  })
+  @IsNumber()
+  @IsOptional()
+  userId?: number;
 }

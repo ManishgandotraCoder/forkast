@@ -7,6 +7,7 @@ interface Balance {
     symbol: string;
     amount: number;
     locked: number;
+    total: number;
     costPrice: number | null;
     createdAt: string;
     updatedAt: string;
@@ -58,6 +59,8 @@ export const ordersAPI = {
         expiresAt?: string;
         currentBalance?: number;
         p2p?: boolean;
+        sellerId?: number;
+        userId?: string
     }) => {
         console.log(data);
 
@@ -70,6 +73,8 @@ export const ordersAPI = {
             market: isMarket,
             currentBalance: data.currentBalance || 0,
             p2p: data.p2p || false,
+            sellerId: data.sellerId,
+            userId: data.userId,
         };
         return api.post(endpoint, orderData);
     },

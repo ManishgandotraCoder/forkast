@@ -1,7 +1,7 @@
 import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { Order, Trade } from '@prisma/client';
 import { PrismaService } from '../../prisma.service';
-import { createOrder, getCurrentMarketPrice, handleLimitOrder, handleMarketOrder, handleP2POrder, transferBalance, validateSymbol } from './orderbook.utils';
+import { createOrder, handleLimitOrder, handleMarketOrder, handleP2POrder, transferBalance, validateSymbol } from './orderbook.utils';
 
 @Injectable()
 export class OrderbookService {
@@ -17,7 +17,8 @@ export class OrderbookService {
         quantity: number,
         market: boolean,
         currentBalance?: number,
-        p2p: boolean = false
+        p2p: boolean = false,
+        sellerId?: number,
     ): Promise<Order> {
         try {
             validateSymbol(symbol);
@@ -25,12 +26,9 @@ export class OrderbookService {
             return await this.prisma.$transaction(async (tx) => {
                 const order = await createOrder(tx, userId, type, symbol, price, quantity, market, p2p);
 
-                this.logger.log(
-                    `${type.toUpperCase()} order placed: id=${order.id} userId=${userId} ${symbol} price=${price} qty=${quantity} market=${market} p2p=${p2p}`
-                );
-
                 if (p2p) {
-                    return await handleP2POrder(tx, order, userId, symbol, quantity, price, type);
+                    console.log("sellerId", sellerId);
+                    return await handleP2POrder(tx, order, userId, symbol, quantity, price, type, sellerId);
                 } else if (market) {
                     return await handleMarketOrder(tx, order, userId, symbol, quantity, price, currentBalance || 0);
                 } else {
