@@ -43,6 +43,11 @@ export const authAPI = {
         api.post('/user/login', data),
 
     getProfile: () => api.get('/user/profile'),
+
+    updateProfile: (data: {
+        name?: string;
+        age?: number;
+    }) => api.put('/user/profile', data),
 };
 
 // Orders API
@@ -134,11 +139,33 @@ export const healthAPI = {
     getHealth: () => api.get('/'),
 };
 
+// USD Profile API
+export const usdProfileAPI = {
+    getUserBalances: () => api.get('/usd-profile/balances'),
+
+    getUsdBalance: () => api.get('/usd-profile/usd-balance'),
+
+    getUserTransactions: () => api.get('/usd-profile/transactions'),
+
+    addUsdToUser: (amount: number) => api.post('/usd-profile/add-usd', { amount }),
+};
+
+// Buy USDT API
+export const buyUsdtAPI = {
+    buyUsdt: (data: {
+        currency: 'USD' | 'INR';
+        amount: number;
+        exchangeRate: number;
+    }) => api.post('/buy-usdt', data),
+
+    getExchangeRates: () => api.get('/buy-usdt/exchange-rates'),
+};
+
 // Portfolio/Balance API - now uses real backend data
 export const portfolioAPI = {
     getBalances: async (): Promise<{ data: { balances: Balance[] } }> => {
         try {
-            const response = await api.get('/balance', {
+            const response = await api.get('/usd-profile/balances', {
                 headers: {
                     'Cache-Control': 'no-cache',
                     'Pragma': 'no-cache'

@@ -3,18 +3,13 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWebSocket } from '@/contexts/WebSocketContext';
+import { buyUsdtAPI, usdProfileAPI } from '@/lib/api';
 import { ArrowUpDown, DollarSign, AlertCircle, TrendingUp, TrendingDown, SignalHigh, CheckCircle2, X } from 'lucide-react';
 import IsolatedUsdInput, { IsolatedUsdInputRef } from '@/components/ui/IsolatedUsdInput';
 
 interface ExchangeRates {
     USD_TO_USDT: number;
     INR_TO_USDT: number;
-}
-
-interface UserBalance {
-    symbol: string;
-    amount: number;
-    locked: number;
 }
 
 interface Ticker {
@@ -47,10 +42,8 @@ export default function BuyUsdtPage() {
     // --- Data Fetchers ---
     const fetchExchangeRates = useCallback(async () => {
         try {
-            const res = await fetch('http://localhost:3001/buy-usdt/exchange-rates');
-            if (!res.ok) throw new Error('Failed to load exchange rates');
-            const rates = (await res.json()) as ExchangeRates;
-            setExchangeRates(rates);
+            const response = await buyUsdtAPI.getExchangeRates();
+            setExchangeRates(response.data);
         } catch (error: unknown) {
             console.error('Error fetching exchange rates:', error);
             setError(error instanceof Error ? error.message : 'Unable to fetch exchange rates');
@@ -113,23 +106,8 @@ export default function BuyUsdtPage() {
         setSuccess('');
 
         try {
-            const token = localStorage.getItem('authToken');
-            const res = await fetch('http://localhost:3001/usd-profile/add-usd', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-                },
-                body: JSON.stringify({ amount: amt }),
-            });
-
-            if (!res.ok) {
-                const err = await res.json().catch(() => ({}));
-                throw new Error(err?.message || 'Failed to add USD');
-            }
-
-            const result = await res.json();
-            setSuccess(`Successfully added ${formatCurrency(result.amountAdded)} to your account`);
+            const response = await usdProfileAPI.addUsdToUser(amt);
+            setSuccess(`Successfully added ${formatCurrency(response.data.amountAdded)} to your account`);
             setAddUsdAmount('');
             usdInputRef.current?.reset();
         } catch (error: unknown) {

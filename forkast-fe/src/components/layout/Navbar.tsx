@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+import { usdProfileAPI } from '@/lib/api';
 import {
     TrendingUp,
     ShoppingCart,
@@ -32,21 +33,10 @@ export default function Navbar() {
     // Fetch user USD balance
     const fetchUserUsdBalance = async () => {
         try {
-            const token = localStorage.getItem('authToken');
-            if (!token) return;
-
-            const response = await fetch('http://localhost:3001/usd-profile/balances', {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                },
-            });
-
-            if (response.ok) {
-                const balances = await response.json();
-                const usdBalance = balances.find((balance: { symbol: string; amount: number }) => balance.symbol === 'USD');
-                setUserUsdBalance(usdBalance ? usdBalance.amount : 0);
-            }
+            const response = await usdProfileAPI.getUserBalances();
+            const balances = response.data;
+            const usdBalance = balances.find((balance: { symbol: string; amount: number }) => balance.symbol === 'USD');
+            setUserUsdBalance(usdBalance ? usdBalance.amount : 0);
         } catch (error) {
             console.error('Failed to fetch USD balance:', error);
             setUserUsdBalance(0);

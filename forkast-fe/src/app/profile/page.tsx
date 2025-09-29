@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
+import { authAPI } from '@/lib/api';
 import { User, Save, Edit2 } from 'lucide-react';
 
 interface ProfileData {
@@ -12,7 +12,6 @@ interface ProfileData {
 }
 
 export default function ProfilePage() {
-    const { user } = useAuth();
     const [profile, setProfile] = useState<ProfileData | null>(null);
     const [isEditing, setIsEditing] = useState(false);
     const [loading, setLoading] = useState(true);
@@ -28,21 +27,13 @@ export default function ProfilePage() {
 
     const fetchProfile = async () => {
         try {
-            const token = localStorage.getItem('authToken');
-            const response = await fetch('http://localhost:3001/user/profile', {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                },
+            const response = await authAPI.getProfile();
+            const data = response.data;
+            setProfile(data);
+            setFormData({
+                name: data.name || '',
+                age: data.age || '',
             });
-
-            if (response.ok) {
-                const data = await response.json();
-                setProfile(data);
-                setFormData({
-                    name: data.name || '',
-                    age: data.age || '',
-                });
-            }
         } catch (error) {
             console.error('Error fetching profile:', error);
         } finally {
@@ -53,26 +44,14 @@ export default function ProfilePage() {
     const handleSave = async () => {
         setSaving(true);
         try {
-            const token = localStorage.getItem('authToken');
-            const response = await fetch('http://localhost:3001/user/profile', {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`,
-                },
-                body: JSON.stringify({
-                    name: formData.name,
-                    age: formData.age ? parseInt(formData.age.toString()) : undefined,
-                }),
+            const response = await authAPI.updateProfile({
+                name: formData.name,
+                age: formData.age ? parseInt(formData.age.toString()) : undefined,
             });
 
-            if (response.ok) {
-                const updatedProfile = await response.json();
-                setProfile(updatedProfile);
-                setIsEditing(false);
-            } else {
-                console.error('Failed to update profile');
-            }
+            const updatedProfile = response.data;
+            setProfile(updatedProfile);
+            setIsEditing(false);
         } catch (error) {
             console.error('Error updating profile:', error);
         } finally {

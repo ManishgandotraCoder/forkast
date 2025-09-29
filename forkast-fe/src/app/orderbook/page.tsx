@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWebSocket } from '@/contexts/WebSocketContext';
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { orderbookAPI } from '@/lib/api';
+import { orderbookAPI, usdProfileAPI } from '@/lib/api';
 import { useCryptoSymbols } from '@/lib/useCryptoSymbols';
 import {
     TrendingUp,
@@ -83,21 +83,10 @@ export default function OrderBookPage() {
     // Fetch user USD balance
     const fetchUserUsdBalance = useCallback(async () => {
         try {
-            const token = localStorage.getItem('authToken');
-            if (!token) return;
-
-            const response = await fetch('http://localhost:3001/usd-profile/balances', {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                },
-            });
-
-            if (response.ok) {
-                const balances = await response.json();
-                const usdBalance = balances.find((balance: { symbol: string; amount: number }) => balance.symbol === 'USD');
-                setUserUsdBalance(usdBalance ? usdBalance.amount : 0);
-            }
+            const response = await usdProfileAPI.getUserBalances();
+            const balances = response.data;
+            const usdBalance = balances.find((balance: { symbol: string; amount: number }) => balance.symbol === 'USD');
+            setUserUsdBalance(usdBalance ? usdBalance.amount : 0);
         } catch (error) {
             console.error('Failed to fetch USD balance:', error);
             setUserUsdBalance(0);
