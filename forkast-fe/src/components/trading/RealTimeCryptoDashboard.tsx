@@ -4,15 +4,13 @@ import React, {
     useEffect,
     useMemo,
     useState,
-    useCallback,
 } from 'react';
 import { useWebSocket } from '@/contexts/WebSocketContext';
+import { useCryptoPrices } from '@/lib/useCryptoPrices';
 import {
     Wifi,
     WifiOff,
     Activity,
-    Star,
-    StarOff,
     RefreshCw,
     Eye,
     Search,
@@ -29,6 +27,18 @@ import OrderModal from './OrderModal';
 type SortKey = 'price' | 'change' | 'marketCap';
 type SortOrder = 'asc' | 'desc';
 type ViewMode = 'grid' | 'table';
+
+interface CryptoData {
+    symbol: string;
+    price: number;
+    shortName: string;
+    regularMarketPrice: number;
+    regularMarketChange: number;
+    regularMarketChangePercent: number;
+    marketCap: number;
+    timestamp?: number;
+    previousPrice?: number;
+}
 
 
 /**
@@ -68,16 +78,14 @@ function useDebounced<T>(value: T, delay = 200) {
  * Component
  */
 const RealTimeCryptoDashboard: React.FC = () => {
-    const { isConnected, cryptoPrices, subscribeToCryptoPrices, unsubscribeFromCryptoPrices, error } = useWebSocket();
+    const { isConnected, subscribeToCryptoPrices, unsubscribeFromCryptoPrices, error: wsError } = useWebSocket();
+    const { data: cryptoPrices = [], loading: cryptoLoading, error: cryptoError } = useCryptoPrices();
 
     const [sortBy, setSortBy] = useLocalStorage<SortKey>('rtc-sortBy', 'marketCap');
     const [sortOrder, setSortOrder] = useLocalStorage<SortOrder>('rtc-sortOrder', 'desc');
     const [rawFilter, setRawFilter] = useLocalStorage<string>('rtc-filter', '');
     const filter = useDebounced(rawFilter, 250);
-    const [favorites, setFavorites] = useLocalStorage<string[]>('crypto-favorites', []);
-    const favoritesSet = useMemo(() => new Set(favorites), [favorites]);
     const [viewMode, setViewMode] = useLocalStorage<ViewMode>('rtc-viewMode', 'table');
-    const [showOnlyFavorites, setShowOnlyFavorites] = useLocalStorage<boolean>('rtc-onlyFav', false);
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [openModal, setOpenModal] = useState<{ status: boolean, type: "buy" | "sell", symbol?: string, currentPrice?: number, currentBalance?: number }>({
         status: false, type: "buy", symbol: undefined, currentPrice: undefined
@@ -90,13 +98,6 @@ const RealTimeCryptoDashboard: React.FC = () => {
     }, [isConnected, subscribeToCryptoPrices, unsubscribeFromCryptoPrices]);
 
 
-    const toggleFavorite = useCallback((symbol: string) => {
-        setFavorites((prev) => {
-            const set = new Set(prev);
-            if (set.has(symbol)) set.delete(symbol); else set.add(symbol);
-            return Array.from(set);
-        });
-    }, [setFavorites]);
 
     const formatPrice = (price: number) => (price >= 1
         ? `$${price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
@@ -139,25 +140,23 @@ const RealTimeCryptoDashboard: React.FC = () => {
         setIsRefreshing(false);
     };
 
+    // Combine WebSocket and API errors
+    const error = wsError || cryptoError;
+
 
     const lastUpdated = useMemo(() => {
-        if (!cryptoPrices.length) return null;
-        return new Date(Math.max(...cryptoPrices.map((p) => p.timestamp))).toLocaleTimeString();
+        if (!cryptoPrices || !cryptoPrices.length) return null;
+        return new Date().toLocaleTimeString();
     }, [cryptoPrices]);
 
     const filteredSorted = useMemo(() => {
         const q = filter.trim().toLowerCase();
-        const list = cryptoPrices.filter((c) => {
+        const list = (cryptoPrices || []).filter((c: CryptoData) => {
             const matches = !q || c.symbol.toLowerCase().includes(q) || c.shortName.toLowerCase().includes(q);
-            const isFavOk = showOnlyFavorites ? favoritesSet.has(c.symbol) : true;
-            return matches && isFavOk;
+            return matches;
         });
 
-        // Favorites first – but stable
-        list.sort((a, b) => {
-            const aFav = favoritesSet.has(a.symbol);
-            const bFav = favoritesSet.has(b.symbol);
-            if (aFav !== bFav) return aFav ? -1 : 1;
+        list.sort((a: CryptoData, b: CryptoData) => {
             let av = 0, bv = 0;
             if (sortBy === 'price') { av = a.price; bv = b.price; }
             else if (sortBy === 'change') { av = a.regularMarketChangePercent; bv = b.regularMarketChangePercent; }
@@ -166,7 +165,7 @@ const RealTimeCryptoDashboard: React.FC = () => {
         });
 
         return list;
-    }, [cryptoPrices, filter, favoritesSet, showOnlyFavorites, sortBy, sortOrder]);
+    }, [cryptoPrices, filter, sortBy, sortOrder]);
 
 
     return (
@@ -207,11 +206,13 @@ const RealTimeCryptoDashboard: React.FC = () => {
                         <div className="flex items-center space-x-3">
                             <div className="text-right">
                                 <div className="text-xs text-gray-500">Last updated</div>
-                                <div className="text-sm font-medium text-gray-700">{lastUpdated ?? 'Never'}</div>
+                                <div className="text-sm font-medium text-gray-700">
+                                    {cryptoLoading ? 'Loading...' : (lastUpdated ?? 'Never')}
+                                </div>
                             </div>
                             <button
                                 onClick={handleRefresh}
-                                disabled={isRefreshing}
+                                disabled={isRefreshing || cryptoLoading}
                                 aria-label="Refresh"
                                 className={`p-2 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors ${isRefreshing ? 'animate-spin' : ''}`}
                             >
@@ -250,18 +251,8 @@ const RealTimeCryptoDashboard: React.FC = () => {
                         />
                     </div>
 
-                    {/* Favorites / View */}
+                    {/* View */}
                     <div className="flex items-center gap-2">
-                        <button
-                            onClick={() => setShowOnlyFavorites((v) => !v)}
-                            className={`flex items-center space-x-2 px-3 py-2 rounded-lg border transition-colors ${showOnlyFavorites ? 'bg-yellow-100 border-yellow-300 text-yellow-700' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}
-                            aria-pressed={showOnlyFavorites}
-                            aria-label="Toggle favorites filter"
-                        >
-                            {showOnlyFavorites ? <Star className="h-4 w-4 fill-current" /> : <StarOff className="h-4 w-4" />}
-                            <span className="text-sm font-medium">Favorites</span>
-                        </button>
-
                         <button
                             onClick={() => setViewMode((m) => (m === 'table' ? 'grid' : 'table'))}
                             className="flex items-center space-x-2 px-3 py-2 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors"
@@ -305,7 +296,6 @@ const RealTimeCryptoDashboard: React.FC = () => {
                             {/* Header */}
                             <div className="grid grid-cols-7 gap-4 px-4 py-4 bg-gradient-to-r from-gray-50 to-gray-100/50 rounded-xl font-semibold text-gray-700 text-sm border border-gray-200/50">
                                 <div className="col-span-2 flex items-center space-x-2">
-                                    <Star className="h-4 w-4" />
                                     <span>Asset</span>
                                 </div>
                                 <div className="text-right">Price</div>
@@ -317,7 +307,15 @@ const RealTimeCryptoDashboard: React.FC = () => {
 
                             {/* Body */}
                             <div className="space-y-3 mt-3">
-                                {filteredSorted.length === 0 ? (
+                                {cryptoLoading ? (
+                                    <div className="text-center py-12 text-gray-500">
+                                        <div className="flex flex-col items-center space-y-3">
+                                            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                                            <div className="text-lg font-medium">Loading crypto data...</div>
+                                            <div className="text-sm">Please wait while we fetch the latest prices</div>
+                                        </div>
+                                    </div>
+                                ) : filteredSorted.length === 0 ? (
                                     <div className="text-center py-12 text-gray-500">
                                         <div className="flex flex-col items-center space-y-3">
                                             <Activity className="h-12 w-12 text-gray-300" />
@@ -326,30 +324,20 @@ const RealTimeCryptoDashboard: React.FC = () => {
                                         </div>
                                     </div>
                                 ) : (
-                                    filteredSorted.map((crypto, index) => (
+                                    filteredSorted.map((crypto: CryptoData, index: number) => (
                                         <div
                                             key={crypto.symbol}
-                                            className={`grid grid-cols-7 gap-4 px-4 py-4 bg-white/80 backdrop-blur-sm border border-gray-200/50 rounded-xl hover:shadow-lg hover:border-gray-300/50 transition-all duration-300 ${favoritesSet.has(crypto.symbol) ? 'ring-2 ring-yellow-200/50 bg-yellow-50/30' : ''}`}
+                                            className="grid grid-cols-7 gap-4 px-4 py-4 bg-white/80 backdrop-blur-sm border border-gray-200/50 rounded-xl hover:shadow-lg hover:border-gray-300/50 transition-all duration-300"
                                             style={{ animationDelay: `${index * 50}ms` }}
                                         >
                                             {/* Asset */}
                                             <div className="col-span-2 flex items-center space-x-3">
-                                                <div className="relative">
-                                                    <div className={`w-10 h-10 bg-gradient-to-br ${getCryptoIcon(crypto.symbol)} rounded-xl flex items-center justify-center text-white font-bold text-sm shadow-lg`}>
-                                                        {crypto.symbol.charAt(0)}
-                                                    </div>
-                                                    {favoritesSet.has(crypto.symbol) && (
-                                                        <div className="absolute -top-1 -right-1 w-4 h-4 bg-yellow-400 rounded-full flex items-center justify-center">
-                                                            <Star className="h-2.5 w-2.5 text-white fill-current" />
-                                                        </div>
-                                                    )}
+                                                <div className={`w-10 h-10 bg-gradient-to-br ${getCryptoIcon(crypto.symbol)} rounded-xl flex items-center justify-center text-white font-bold text-sm shadow-lg`}>
+                                                    {crypto.symbol.charAt(0)}
                                                 </div>
                                                 <div>
-                                                    <div className="font-semibold text-gray-900 flex items-center space-x-2">
+                                                    <div className="font-semibold text-gray-900">
                                                         <span>{crypto.symbol.replace('-USD', '')}</span>
-                                                        <button onClick={() => toggleFavorite(crypto.symbol)} className="hover:scale-110 transition-transform" aria-label="Toggle favorite">
-                                                            {favoritesSet.has(crypto.symbol) ? <Star className="h-4 w-4 text-yellow-400 fill-current" /> : <StarOff className="h-4 w-4 text-gray-400" />}
-                                                        </button>
                                                     </div>
                                                     <div className="text-sm text-gray-500">{crypto.shortName}</div>
                                                 </div>
@@ -411,19 +399,16 @@ const RealTimeCryptoDashboard: React.FC = () => {
                 ) : (
                     // Grid view
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                        {filteredSorted.map((crypto, index) => (
+                        {filteredSorted.map((crypto: CryptoData, index: number) => (
                             <div
                                 key={crypto.symbol}
-                                className={`bg-white/80 backdrop-blur-sm border border-gray-200/50 rounded-xl p-4 hover:shadow-lg hover:border-gray-300/50 transition-all duration-300 ${favoritesSet.has(crypto.symbol) ? 'ring-2 ring-yellow-200/50 bg-yellow-50/30' : ''}`}
+                                className="bg-white/80 backdrop-blur-sm border border-gray-200/50 rounded-xl p-4 hover:shadow-lg hover:border-gray-300/50 transition-all duration-300"
                                 style={{ animationDelay: `${index * 100}ms` }}
                             >
                                 <div className="flex items-center justify-between mb-3">
                                     <div className={`w-10 h-10 bg-gradient-to-br ${getCryptoIcon(crypto.symbol)} rounded-xl flex items-center justify-center text-white font-bold text-sm shadow-lg`}>
                                         {crypto.symbol.charAt(0)}
                                     </div>
-                                    <button onClick={() => toggleFavorite(crypto.symbol)} className="hover:scale-110 transition-transform" aria-label="Toggle favorite">
-                                        {favoritesSet.has(crypto.symbol) ? <Star className="h-5 w-5 text-yellow-400 fill-current" /> : <StarOff className="h-5 w-5 text-gray-400" />}
-                                    </button>
                                 </div>
 
                                 <div className="mb-3">
@@ -464,14 +449,14 @@ const RealTimeCryptoDashboard: React.FC = () => {
 
             {/* Footer stats */}
             <div className="px-6 pt-6 border-t border-gray-200/50">
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="bg-white/60 backdrop-blur-sm rounded-xl p-4 border border-gray-200/50 hover:shadow-md transition-shadow">
                         <div className="flex items-center space-x-3">
                             <div className="p-2 bg-blue-100 rounded-lg">
                                 <BarChart3 className="h-5 w-5 text-blue-600" />
                             </div>
                             <div>
-                                <div className="text-2xl font-bold text-gray-900">{cryptoPrices.length}</div>
+                                <div className="text-2xl font-bold text-gray-900">{cryptoPrices?.length || 0}</div>
                                 <div className="text-sm text-gray-500">Assets Tracked</div>
                             </div>
                         </div>
@@ -501,17 +486,6 @@ const RealTimeCryptoDashboard: React.FC = () => {
                         </div>
                     </div>
 
-                    <div className="bg-white/60 backdrop-blur-sm rounded-xl p-4 border border-gray-200/50 hover:shadow-md transition-shadow">
-                        <div className="flex items-center space-x-3">
-                            <div className="p-2 bg-yellow-100 rounded-lg">
-                                <Star className="h-5 w-5 text-yellow-600" />
-                            </div>
-                            <div>
-                                <div className="text-2xl font-bold text-gray-900">{favoritesSet.size}</div>
-                                <div className="text-sm text-gray-500">Favorites</div>
-                            </div>
-                        </div>
-                    </div>
                 </div>
             </div>
 
