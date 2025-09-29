@@ -34,13 +34,25 @@ async function bootstrap() {
       
       ## Features
       - **User Management**: Registration, authentication, and profile management
+      - **USD Profile Management**: Add USD, view balances, and transaction history
+      - **USDT Trading**: Buy USDT with USD or INR at real-time exchange rates
       - **Order Management**: Place buy/sell orders, view order history with pagination
       - **Trading Engine**: Real-time order matching and trade execution
       - **Portfolio Management**: View balances and trade history
       - **Market Data**: Real-time cryptocurrency prices and market information
+      - **WebSocket Support**: Real-time price updates and trading notifications
       
       ## Authentication
       Most endpoints require Bearer token authentication. Get your token by logging in.
+      
+      ## API Endpoints
+      - **Health**: System health and status checks
+      - **Users**: User registration, login, and profile management
+      - **USD Profile**: USD balance management and transaction history
+      - **Buy USDT**: Purchase USDT with USD or INR currencies
+      - **Orderbook**: Trading orders, order history, and trade execution
+      - **Balance**: Cryptocurrency balance management
+      - **Crypto**: Real-time cryptocurrency market data
       
       ## Pagination
       List endpoints support pagination with \`page\` and \`limit\` query parameters.
@@ -69,6 +81,8 @@ async function bootstrap() {
     .addServer('https://api.forkast.com', 'Production server')
     .addTag('health', 'Health check endpoints')
     .addTag('users', 'User management and authentication')
+    .addTag('usd-profile', 'USD profile and balance management')
+    .addTag('buy-usdt', 'Buy USDT with USD or INR')
     .addTag('orderbook', 'Trading and order management')
     .addTag('balance', 'User balance and portfolio management')
     .addTag('crypto', 'Cryptocurrency market data')
